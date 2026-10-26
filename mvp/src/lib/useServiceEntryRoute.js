@@ -1,0 +1,322 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  DEMO_HISTORY,
+  DEMO_REPORT,
+  DEMO_SESSION,
+  DEMO_TURN,
+  DEMO_TURN_HISTORY,
+  DEMO_TURN_SIGNALS,
+} from "../data/serviceEntryDemo";
+import { clearActiveSession, resetVisitorStorage, resolveReportIdleTimeoutMs, shouldArmReportIdleReset } from "./exhibitionSession";
+import { currentDeploymentServiceMode } from "./deploymentServiceMode";
+import { getSession, loadActiveSession, resolveNfcCard } from "./pocApi";
+import {
+  ENTRY_LOOKUP_TIMEOUT_MS,
+  currentScreenDestination,
+  SERVICE_ENTRY_FLOW,
+  demoDestination,
+  guardSessionDestination,
+  isKnownView,
+  normalizeDestination,
+  savedSessionDestination,
+} from "./serviceEntryRoute";
+import { hasCurrentCardConsent, isMirrorDeployment } from "../features/smart-mirror/lib/workplaceMirrorTimeline";
+import { useNfcTap } from "./useNfcTap";
+import { WORKPLACE_SCENARIO_SLUG } from "./workplaceTrack";
+
+export function useServiceEntryRoute({ kioskIssueMode, requestExerciseMedia, visitorEpochRef, onVisitorReset }) {
+  const deploymentServiceModeId = currentDeploymentServiceMode();
+  const [active, setActive] = useState("boot");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedServiceModeId, setSelectedServiceModeId] = useState(deploymentServiceModeId || null);
+  const [counterpartProfile, setCounterpartProfile] = useState(null);
+  const [difficulty, setDifficulty] = useState(null);
+  const [session, setSession] = useState(null);
+  const [turn, setTurn] = useState(null);
+  const [turnHistory, setTurnHistory] = useState([]);
+  const [turnSignals, setTurnSignals] = useState(null);
+  const [report, setReport] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [pocScenarioSlug, setPocScenarioSlug] = useState("");
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState(null);
+  const [scenarioPrompt, setScenarioPrompt] = useState("");
+  const [nfcCard, setNfcCard] = useState(null);
+  const [nfcFallback, setNfcFallback] = useState(false);
+  const [consented, setConsented] = useState(false);
+  const [directMirrorEntry, setDirectMirrorEntry] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [nfcError, setNfcError] = useState("");
+  const nfcResolvingRef = useRef(false);
+  const localEpochRef = useRef(0);
+  const epochRef = visitorEpochRef || localEpochRef;
+  const resetVisitor = (keepServiceMode = false) => {
+    epochRef.current += 1;
+    nfcResolvingRef.current = false;
+    resetVisitorStorage(localStorage);
+    setSession(null); setTurn(null); setTurnHistory([]); setTurnSignals(null);
+    setReport(null); setHistory([]); setApiError(""); setNfcError("");
+    if (!keepServiceMode) setSelectedServiceModeId(null);
+    setCounterpartProfile(null); setScenarioPrompt("");
+    setPocScenarioSlug(""); setSelectedEpisodeId(null); setDifficulty(null);
+    setConsented(false); setDirectMirrorEntry(false); setNfcCard(null); setNfcFallback(false);
+    onVisitorReset?.();
+  };
+
+  const showView = (target) => {
+    if (["homepage", "home", "role"].includes(target)) {
+      setNfcCard(null);
+      setConsented(false);
+      setNfcFallback(false);
+    }
+    setActive(currentScreenDestination(target, isMirrorDeployment()));
+    setMenuOpen(false);
+  };
+
+  const replaceView = (target) => {
+    window.history.replaceState({ mirrorTingView: target }, "");
+    showView(target);
+  };
+
+  const navigate = (target, serviceModeId = selectedServiceModeId) => {
+    const destination = currentScreenDestination(normalizeDestination(target, serviceModeId), isMirrorDeployment());
+    const url = new URL(window.location.href);
+    if (destination !== "faq") url.searchParams.delete("help");
+    if (destination !== "usage") url.searchParams.delete("guide");
+    if (destination === "service") {
+      url.searchParams.delete("service");
+      url.searchParams.delete("demo");
+      resetVisitor();
+    }
+    window.history.pushState({ mirrorTingView: destination }, "", url);
+    showView(destination);
+  };
+
+  const returnToStart = () => {
+    resetVisitor(Boolean(deploymentServiceModeId));
+    const url = new URL(window.location.href);
+    url.searchParams.delete("demo");
+    const destination = deploymentServiceModeId ? "home" : "service";
+    window.history.replaceState({ mirrorTingView: destination }, "", url);
+    showView(destination);
+  };
+
+  useEffect(() => { window.scrollTo(0, 0); }, [active]);
+  useEffect(() => {
+    const handlePopState = (event) => {
+      const savedTarget = event.state?.mirrorTingView;
+      if (!isKnownView(savedTarget)) return;
+      const destination = guardSessionDestination(normalizeDestination(savedTarget, selectedServiceModeId), session?.status);
+      if (destination === "service") resetVisitor();
+      if (destination !== savedTarget) window.history.replaceState({ mirrorTingView: destination }, "");
+      showView(destination);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [selectedServiceModeId, session?.status]);
+
+  useEffect(() => {
+    const destination = guardSessionDestination(active, session?.status);
+    if (destination !== active) replaceView(destination);
+  }, [active, session?.status]);
+
+  useEffect(() => {
+    if (kioskIssueMode) return undefined;
+    let cancelled = false;
+    const epoch = epochRef.current;
+    let lookupTimer = 0;
+    const enter = (target) => { if (!cancelled) replaceView(target); };
+    const enterPractice = () => requestExerciseMedia().catch(() => {});
+    const resolveEntry = async () => {
+      if (!isMirrorDeployment()) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("demo");
+        window.history.replaceState(window.history.state, "", url);
+        enter(url.searchParams.has("help") ? "faq" : url.searchParams.has("guide") ? "usage" : deploymentServiceModeId ? "home" : "service");
+        return;
+      }
+      if (isMirrorDeployment() && performance.getEntriesByType("navigation")[0]?.type === "reload") {
+        returnToStart();
+        return;
+      }
+      const directDestination = demoDestination();
+      if (directDestination === "practice") {
+        setReport(DEMO_REPORT); setHistory(DEMO_HISTORY);
+        setSession(DEMO_SESSION); setTurn(DEMO_TURN); setTurnHistory(DEMO_TURN_HISTORY); setTurnSignals(DEMO_TURN_SIGNALS);
+        enter("practice");
+        enterPractice();
+        return;
+      }
+      if (directDestination) {
+        setReport(DEMO_REPORT); setHistory(DEMO_HISTORY); enter(directDestination);
+        return;
+      }
+
+      const saved = loadActiveSession();
+      if (!saved) {
+        clearActiveSession(localStorage);
+        enter(deploymentServiceModeId ? "home" : "service");
+        return;
+      }
+      try {
+        const resumed = await Promise.race([
+          getSession(saved),
+          new Promise((_, reject) => {
+            lookupTimer = window.setTimeout(() => reject(new Error("saved session lookup timed out")), ENTRY_LOOKUP_TIMEOUT_MS);
+          }),
+        ]);
+        if (cancelled || epoch !== epochRef.current) return;
+        const destination = savedSessionDestination(resumed.status);
+        if (!destination) {
+          clearActiveSession(localStorage);
+          enter(deploymentServiceModeId ? "home" : "service");
+          return;
+        }
+        const resumedSession = { ...resumed, access_token: saved.access_token };
+        setSession(resumedSession); setTurn(resumed.current_turn); setTurnHistory(resumed.history || []);
+        enter(destination);
+        if (destination === "practice") enterPractice();
+      } catch {
+        if (!cancelled && epoch === epochRef.current) {
+          clearActiveSession(localStorage);
+          enter(deploymentServiceModeId ? "home" : "service");
+        }
+      } finally {
+        window.clearTimeout(lookupTimer);
+      }
+    };
+    resolveEntry();
+    return () => { cancelled = true; window.clearTimeout(lookupTimer); };
+  }, []);
+
+  useEffect(() => {
+    // Mirror practice/results share a media-aware 30-second timer in ServiceEntryShell.
+    if (isMirrorDeployment()) return undefined;
+    if (!shouldArmReportIdleReset(active, report)) return undefined;
+    const idleMs = resolveReportIdleTimeoutMs(window.location.search);
+    if (idleMs === null) return undefined;
+    let timer = 0;
+    const resetTimer = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        navigate("service");
+      }, idleMs);
+    };
+    resetTimer();
+    const events = ["pointerdown", "keydown", "touchstart"];
+    events.forEach((eventName) => window.addEventListener(eventName, resetTimer, { passive: true }));
+    return () => {
+      window.clearTimeout(timer);
+      events.forEach((eventName) => window.removeEventListener(eventName, resetTimer));
+    };
+  }, [active, report]);
+
+  const handleMirrorTap = async (tap) => {
+    if (nfcResolvingRef.current) return;
+    resetVisitor(true);
+    nfcResolvingRef.current = true;
+    const epoch = epochRef.current;
+    try {
+      const card = await resolveNfcCard(tap.uid);
+      if (epoch !== epochRef.current) return;
+      if (card.requires_role_selection) {
+        if (!card.uid || !card.kiosk_session_id) throw new Error("사원증 확인 응답이 올바르지 않아요.");
+        setNfcCard({ uid: card.uid, kioskSessionId: card.kiosk_session_id,
+          ...(isMirrorDeployment() ? { jobRole: "office_admin", scenarioSlug: WORKPLACE_SCENARIO_SLUG } : {}) });
+        setNfcFallback(!isMirrorDeployment());
+        if (isMirrorDeployment()) {
+          setConsented(true);
+          setPocScenarioSlug(WORKPLACE_SCENARIO_SLUG);
+          navigate("preview");
+        }
+        return;
+      }
+      setNfcCard({ uid: card.uid, jobRole: card.job_role, scenarioSlug: card.scenario_slug, jobRoleLabel: card.job_role_label, issuedCount: card.issued_count });
+      if (isMirrorDeployment() && !hasCurrentCardConsent(card)) {
+        startMirrorExperience();
+        return;
+      }
+      setConsented(hasCurrentCardConsent(card));
+      setNfcFallback(false);
+      setApiError("");
+      navigate("preview");
+    } catch (error) {
+      if (epoch === epochRef.current) {
+        // 미러의 NFC는 미발급 카드도 시작 버튼처럼 쓴다. 조회가 안 된
+        // UID/이전 방문자의 사원증은 새 익명 체험에 전달하지 않는다.
+        if (isMirrorDeployment()) {
+          startMirrorExperience();
+          return;
+        }
+        setNfcCard(null);
+        setNfcFallback(!isMirrorDeployment() && error.status === 404);
+        setApiError(error.status === 404 ? "" : "사원증 서버 연결을 확인한 뒤 다시 태그해주세요.");
+        setNfcError(error.status === 404
+          ? "출력 키오스크에서 먼저 사원증을 발급받고 다시 태그해주세요."
+          : "사원증 서버에 연결하지 못했어요. 운영자에게 연결을 확인한 뒤 카드를 다시 태그해 주세요.");
+      }
+    } finally {
+      if (epoch === epochRef.current) nfcResolvingRef.current = false;
+    }
+  };
+
+  useNfcTap({
+    reader: "mirror",
+    enabled: active === "home" && Boolean(selectedServiceModeId) && !kioskIssueMode,
+    onTap: handleMirrorTap,
+  });
+
+  const startMirrorExperience = () => {
+    if (!isMirrorDeployment()) return;
+    resetVisitor(true);
+    setDirectMirrorEntry(true);
+    // Clicking the welcome video or tapping a card starts the same preparation flow.
+    setConsented(true);
+    setPocScenarioSlug(WORKPLACE_SCENARIO_SLUG);
+    navigate("preview");
+  };
+  const startFromJobRole = (role) => {
+    setNfcCard({ uid: nfcCard?.uid || "", kioskSessionId: nfcCard?.kioskSessionId, jobRole: role.id,
+      scenarioSlug: selectedServiceModeId === "workplace" ? WORKPLACE_SCENARIO_SLUG : role.scenarioSlug, jobRoleLabel: role.label });
+    setNfcFallback(false);
+    setApiError("");
+    navigate("preview");
+  };
+  const go = (offset) => {
+    const currentIndex = SERVICE_ENTRY_FLOW.findIndex((item) => item.id === active);
+    navigate(SERVICE_ENTRY_FLOW[Math.min(Math.max(currentIndex + offset, 0), SERVICE_ENTRY_FLOW.length - 1)].id);
+  };
+  const chooseServiceMode = (serviceModeId, keepPrompt = false) => {
+    const nextServiceModeId = serviceModeId;
+    setSelectedServiceModeId(nextServiceModeId);
+    setCounterpartProfile(null);
+    if (!keepPrompt) setScenarioPrompt("");
+    setDifficulty(null);
+    setSelectedEpisodeId(null);
+    setPocScenarioSlug(nextServiceModeId === "workplace" ? WORKPLACE_SCENARIO_SLUG : "");
+    navigate("home", nextServiceModeId);
+  };
+  const chooseCounterpartProfile = (profileId) => {
+    setCounterpartProfile(profileId);
+    setSelectedEpisodeId(null);
+  };
+  const chooseScenario = (option) => {
+    setPocScenarioSlug(option.scenarioSlug);
+    setSelectedEpisodeId(option.episodeId);
+  };
+
+  return {
+    state: {
+      active, menuOpen, selectedServiceModeId, counterpartProfile, difficulty, session, turn, directMirrorEntry,
+      turnHistory, turnSignals, report, history, pocScenarioSlug, selectedEpisodeId, nfcCard,
+      nfcFallback, consented, apiError, nfcError, scenarioPrompt,
+    },
+    setters: {
+      setMenuOpen, setCounterpartProfile, setDifficulty, setSession, setTurn, setTurnHistory,
+      setTurnSignals, setReport, setHistory, setPocScenarioSlug, setSelectedEpisodeId,
+      setNfcFallback, setNfcCard, setConsented, setApiError, setScenarioPrompt,
+    },
+    actions: {
+      navigate, go, chooseServiceMode, chooseCounterpartProfile, chooseScenario, startFromJobRole, startMirrorExperience, returnToStart,
+    },
+  };
+}

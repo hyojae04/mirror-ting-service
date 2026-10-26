@@ -1,0 +1,235 @@
+"""분석 파이프라인 정확성/견고성 — Tier 1 수정 회귀.
+
+A. 분석 중 운영자 리셋(→aborted)이 completed로 되살아나지 않는다.
+B. 불량 timeline 빈(클라이언트 페이로드)이 분석을 죽이지 않는다.
+C1. 쉼 없는 유창한 발화가 pause 축에서 0점 절벽으로 떨어지지 않는다.
+D. 빈 체크리스트(깨진 에피소드 참조)가 좋은 답변을 감점시키지 않는다.
+E. 표정은 점수 축, 시선은 관찰 신호로 흐르고 총점은 점수 축 가중 평균이다.
+"""
+from app.ai.response_fit import analyze_response, score_response
+from app.ai.scoring import SCORED_FIT_WEIGHTS, band_score, weighted_mean
+from app.ai.voice_fit import PAUSE_RATIO_BANDS
+from app.core.database import SessionLocal
+from app.models import Consent, RoleplaySession, Scenario, SessionStatus, Turn
+from app.seed.run import seed
+from app.services import report as report_service
+from app.services.analysis import run_analysis
+from app.services.moments import build_turn_moments
+
+
+def _make_analyzing_session_with_turn(db) -> int:
+    scenario = db.query(Scenario).first()
+    episode = scenario.episodes[0]
+    session = RoleplaySession(scenario_id=scenario.id, status=SessionStatus.analyzing)
+    db.add(session)
+    db.flush()
+    db.add(Consent(session_id=session.id, storage_policy="anonymous", agreed=True))
+    db.add(Turn(
+        session_id=session.id, episode_id=episode.id, order=1,
+        question_type="initial", question_text=episode.initial_question,
+        character_id=episode.character_id, stt_source="text",
+        response_text="안녕하세요. 결론부터 말씀드리면 로그를 먼저 확인하고 바로 보고드리겠습니다.",
+    ))
+    db.commit()
+    return session.id
+
+
+# ---- A: 분석 중 리셋 보존 ----
+
+def test_reset_during_analysis_is_not_overwritten(monkeypatch):
+    seed()
+    db = SessionLocal()
+    try:
+        sid = _make_analyzing_session_with_turn(db)
+    finally:
+        db.close()
+
+    # build_report 직후 '운영자 리셋'이 다른 세션에서 들어온 것처럼 aborted로 만든다
+    orig = report_service.build_report
+
+    def sabotage(db, session, scores, ms, **kwargs):
+        orig(db, session, scores, ms, **kwargs)
+        other = SessionLocal()
+        try:
+            other.query(RoleplaySession).filter_by(id=sid).update(
+                {"status": SessionStatus.aborted}
+            )
+            other.commit()
+        finally:
+            other.close()
+
+    monkeypatch.setattr(report_service, "build_report", sabotage)
+    run_analysis(sid)
+
+    db = SessionLocal()
+    try:
+        s = db.get(RoleplaySession, sid)
+        assert s.status == SessionStatus.aborted, "리셋된 세션이 completed로 되살아나면 안 된다"
+        assert s.report is None, "중단된 세션의 리포트는 남기지 않는다"
+    finally:
+        db.close()
+
+
+def test_normal_analysis_still_completes():
+    """리셋 가드가 정상 완료 경로를 막지 않는다 (회귀)."""
+    seed()
+    db = SessionLocal()
+    try:
+        sid = _make_analyzing_session_with_turn(db)
+    finally:
+        db.close()
+    run_analysis(sid)
+    db = SessionLocal()
+    try:
+        s = db.get(RoleplaySession, sid)
+        assert s.status == SessionStatus.completed
+        assert s.report is not None
+    finally:
+        db.close()
+
+
+def test_new_observation_metrics_flow_into_report():
+    """신규 관찰 지표가 파이프라인 끝(리포트 JSON)까지 흐른다 — 배선 회귀 방지.
+
+    텍스트 턴만 있는 세션: delivery 카드에 구체성 행이 항상 나와야 하고,
+    음성 실측이 없으므로 congruence 카드는 판정 보류(부재)여야 한다.
+    """
+    seed()
+    db = SessionLocal()
+    try:
+        sid = _make_analyzing_session_with_turn(db)
+    finally:
+        db.close()
+    run_analysis(sid)
+    db = SessionLocal()
+    try:
+        s = db.get(RoleplaySession, sid)
+        deep = s.report.deep_analysis
+        delivery = deep.get("delivery")
+        assert delivery is not None
+        assert any("구체성" in r["label"] for r in delivery["rows"])
+        assert "congruence" not in deep, "음성 실측 없는 세션에 일치도 카드가 나오면 안 된다"
+    finally:
+        db.close()
+
+
+# ---- B: 불량 timeline 견고성 ----
+
+def test_malformed_timeline_bin_does_not_crash():
+    # 't' 없는 빈, 'front'만 있는 빈 — 예전엔 bin_["t"]가 KeyError로 분석 전체를 죽였다
+    bad = [{"front": 0.1, "press": 0.5}, {"t": 2, "front": 0.1}, {"t": 4}]
+    result = build_turn_moments(1, "initial", bad, None)
+    assert isinstance(result, list)
+
+
+# ---- C1: 쉼 절벽 제거 ----
+
+def test_fluent_no_internal_pause_not_zeroed():
+    assert band_score(0.0, *PAUSE_RATIO_BANDS) == 100.0   # 쉼 없는 유창함 = 감점 아님
+    assert band_score(0.20, *PAUSE_RATIO_BANDS) == 100.0  # 적정 쉼
+    assert band_score(0.70, *PAUSE_RATIO_BANDS) == 0.0    # 과도한 침묵은 여전히 감점
+
+
+# ---- D: 빈 체크리스트가 좋은 답을 감점시키지 않음 ----
+
+def test_empty_checklist_does_not_tank_good_answer():
+    text = ("안녕하세요, 신입 김지연입니다. 결론부터 말씀드리면 고객사 장애 로그를 "
+            "먼저 확인하겠습니다. 확인 후 원인과 조치를 바로 보고드리겠습니다.")
+    m = analyze_response(text, [], use_semantic=False)  # 깨진 에피소드 = 빈 체크리스트
+    assert m["has_checklist"] is False
+    assert score_response(m) >= 50, "빈 체크리스트가 좋은 답변을 0점 근처로 만들면 안 된다"
+
+
+# ---- E: 시선→표정 축 교체 (배선 회귀) ----
+
+def _make_session_with_nonverbal(db, nv: dict) -> int:
+    scenario = db.query(Scenario).first()
+    episode = scenario.episodes[0]
+    session = RoleplaySession(scenario_id=scenario.id, status=SessionStatus.analyzing)
+    db.add(session)
+    db.flush()
+    db.add(Consent(session_id=session.id, storage_policy="anonymous", agreed=True))
+    db.add(Turn(
+        session_id=session.id, episode_id=episode.id, order=1,
+        question_type="initial", question_text=episode.initial_question,
+        character_id=episode.character_id, stt_source="text",
+        response_text="안녕하세요. 결론부터 말씀드리면 로그를 먼저 확인하고 바로 보고드리겠습니다.",
+        nonverbal_metrics=nv,
+    ))
+    db.commit()
+    return session.id
+
+
+def test_expression_scored_and_weighted_total():
+    """표정은 4-Fit 점수 축(참고용)으로, 시선은 관찰 신호로 리포트에 흐르고
+    총점은 점수 축의 가중 평균(시선 제외)이다."""
+    seed()
+    nv = {
+        "frames": 120, "blink_per_min": 16,
+        # 표정(점수 축) 신호 — 생동·낮은 긴장·빠른 복구·진정성 미소
+        "brow_raise_ratio": 0.25, "mouth_press_ratio": 0.03,
+        "expr_recover_sec": 0.2, "smile_ratio": 0.2, "smile_duchenne_ratio": 0.7,
+        # 시선(관찰) 신호
+        "front_gaze_ratio": 0.82, "gaze_off_count": 2, "longest_off_sec": 1.2,
+    }
+    db = SessionLocal()
+    try:
+        sid = _make_session_with_nonverbal(db, nv)
+    finally:
+        db.close()
+    run_analysis(sid)
+    db = SessionLocal()
+    try:
+        report = db.get(RoleplaySession, sid).report
+        fits, total = report.fit_scores, report.total_score
+
+        # 표정 = 점수 축, α 검증 전 참고용 플래그
+        assert fits["expression"]["score"] is not None
+        assert fits["expression"].get("provisional") is True
+        # 시선 = 관찰 신호 (점수 있으나 관찰 플래그, 4-Fit 아님)
+        assert "eye" not in fits
+        # 총점 = 점수 축(response·voice·expression·posture)의 가중 평균 — 시선 제외
+        scored = [
+            (fits[k]["score"], SCORED_FIT_WEIGHTS[k])
+            for k in ("response", "voice", "expression", "posture")
+            if fits.get(k, {}).get("score") is not None
+        ]
+        assert total == round(weighted_mean(scored), 1)
+    finally:
+        db.close()
+
+
+def test_fillers_use_whisper_audio_and_preserve_chrome_answer(monkeypatch):
+    from app.models import AnalysisResult, FitType
+    from app.services import analysis
+    seed()
+    with SessionLocal() as db:
+        sid = _make_analyzing_session_with_turn(db)
+        turn = db.query(Turn).filter_by(session_id=sid).one()
+        turn.audio_path = "mock.wav"
+        turn.stt_source = "webspeech"
+        original = turn.response_text
+        db.commit()
+    class Whisper:
+        def transcribe_words(self, path):
+            assert path == "mock.wav"
+            return [{"word": w, "start": i, "end": i + .5, "conf": .9}
+                    for i, w in enumerate(["어,", "음,", "확인하겠습니다."])]
+    monkeypatch.setattr(analysis, "get_stt_provider", lambda: Whisper())
+    monkeypatch.setattr(analysis.voice_fit, "analyze_audio", lambda *args: {"speech_rate_sps": 4})
+    monkeypatch.setattr(analysis.voice_fit, "score_voice", lambda metrics: 70 if metrics else None)
+    monkeypatch.setattr(analysis.voice_align, "analyze_alignment", lambda *args: {})
+    run_analysis(sid)
+    with SessionLocal() as db:
+        turn = db.query(Turn).filter_by(session_id=sid).one()
+        assert turn.response_text == original
+        voice = db.query(AnalysisResult).filter_by(session_id=sid, turn_id=turn.id, fit_type=FitType.voice).one()
+        assert voice.raw_metrics["fillers"]["filler_count"] == 2
+        assert voice.raw_metrics["fillers"]["source"] == "whisper-filler-prompt"
+        assert voice.score == 70
+
+
+def test_missing_whisper_is_unmeasured_not_zero(monkeypatch):
+    from app.ai.paralinguistics import summarize
+    assert summarize([{"speech_rate_sps": 4}])["filler_count"] is None
+    assert summarize([{"fillers": {"filler_count": 0}}])["filler_count"] == 0

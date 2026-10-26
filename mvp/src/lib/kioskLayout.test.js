@@ -1,0 +1,168 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { test } from "node:test";
+import { CHROMELESS_VIEWS } from "./serviceEntryRoute.js";
+
+const stylesheetFiles = [
+  "../styles.css",
+  "../styles/base.css",
+  "../styles/home-legacy.css",
+  "../styles/selection-setup-base.css",
+  "../styles/practice-base.css",
+  "../styles/result.css",
+  "../styles/responsive-legacy.css",
+  "../styles/navigation.css",
+  "../styles/desktop-dashboard.css",
+  "../styles/print.css",
+  "../styles/fidelity-foundation.css",
+  "../styles/fidelity-home.css",
+  "../styles/fidelity-reports.css",
+  "../styles/fidelity-practice.css",
+  "../styles/fidelity-responsive.css",
+  "../styles/setup-flow.css",
+  "../styles/dashboard.css",
+  "../styles/shadcn-ui.css",
+  "../styles/mode-home.css",
+  "../styles/design-system-runtime.css",
+  "../styles/setup-refresh.css",
+  "../styles/preflight-refresh.css",
+  "../styles/report-unified.css",
+];
+const styles = stylesheetFiles.map((file) => readFileSync(new URL(file, import.meta.url), "utf8")).join("\n");
+const appSource = readFileSync(new URL("../App.jsx", import.meta.url), "utf8");
+const setupCatalogSource = readFileSync(new URL("../data/setupCatalog.js", import.meta.url), "utf8");
+const setupAssetFiles = [...setupCatalogSource.matchAll(/from "\.\.\/assets\/([^"]+)"/g)].map((match) => match[1]);
+const homeSceneAssetFiles = [
+  "home-scenes/training-work-scene.webp",
+];
+const componentSources = [
+  appSource,
+  readFileSync(new URL("../data/homeContent.js", import.meta.url), "utf8"),
+  readFileSync(new URL("../pages/HomePage.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/home/InterviewHome.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/home/TrainingHome.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/home/WorkplaceHome.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/home/HomeSections.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/home/HomeMotion.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../pages/PracticePage.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../lib/turnSpeechPlayback.js", import.meta.url), "utf8"),
+  readFileSync(new URL("../pages/PreviewPage.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../pages/ResultPage.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/report/ResultPrimitives.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/report/Charts.jsx", import.meta.url), "utf8"),
+  setupCatalogSource,
+  readFileSync(new URL("../components/ui/IconGlyph.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/navigation/navigationConfig.js", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/navigation/AppNavigation.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../components/setup/SetupComponents.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../pages/setup/RoleSelectPage.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../pages/setup/ScenarioSelectPage.jsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../pages/setup/DifficultyPage.jsx", import.meta.url), "utf8"),
+];
+const sourceBundle = componentSources.join("\n");
+
+const functionBody = (functionName) => {
+  const source = componentSources.find((item) => item.includes(`function ${functionName}(`));
+  const start = source?.indexOf(`function ${functionName}(`) ?? -1;
+  assert.notEqual(start, -1, `${functionName} exists`);
+  const next = source.indexOf("\nfunction ", start + 1);
+  return source.slice(start, next === -1 ? undefined : next);
+};
+
+test("kiosk 1920 layout reserves desktop canvas for supplied PC mockup views", () => {
+  assert.match(styles, /@media \(min-width: 1500px\) and \(min-height: 900px\)/);
+  assert.match(styles, /\.app-shell\s*\{[^}]*width:\s*min\(1720px,\s*calc\(100% - 56px\)\)/s);
+
+  for (const selector of [
+    ".home-hero",
+    ".setup-page",
+    ".practice-page",
+    ".result-page",
+    ".preview-page",
+  ]) {
+    assert.match(styles, new RegExp(`${selector.replace(".", "\\.")}[\\s\\S]*?`, "m"));
+  }
+});
+
+test("the unified report reuses app navigation and shared components", () => {
+  for (const componentName of [
+    "PageToolbar",
+    "PrimaryBar",
+    "ScoreRing",
+    "TrendChart",
+  ]) {
+    assert.match(sourceBundle, new RegExp(`function ${componentName}\\(`));
+  }
+
+  const resultPage = functionBody("ResultPage");
+  assert.doesNotMatch(resultPage, /<ReportShell\b/, "ResultPage avoids the dashboard shell");
+  assert.match(resultPage, /<PageToolbar\b/, "ResultPage uses the shared page toolbar");
+  assert.match(resultPage, /<ScoreRing\b/, "ResultPage uses the shared score visualization");
+  assert.match(resultPage, /<Card\b/, "ResultPage uses the shared Card primitive");
+  assert.match(resultPage, /<Button\b/, "ResultPage uses the shared Button primitive");
+  assert.match(styles, /\.report-page\.unified-report/);
+  assert.match(styles, /--report-blue:\s*var\(--color-apple-blue\)/);
+  assert.deepEqual([...CHROMELESS_VIEWS], ["service"], "only the service selector omits shared navigation chrome");
+  assert.match(functionBody("PracticePage"), /practice-contextbar/, "PracticePage keeps only its live context controls");
+  assert.match(functionBody("PracticePage"), /completedSpeechRef\.current === speechKey/, "PracticePage does not replay a completed question");
+  assert.match(sourceBundle, /utter\.onend = finishSpeaking/);
+  assert.match(sourceBundle, /audio\.onended = finishSpeaking/);
+
+  const previewPage = functionBody("PreviewPage");
+  assert.doesNotMatch(previewPage, /<PageToolbar\b/, "PreviewPage removes toolbar pill controls");
+  assert.match(previewPage, /preview-scenario-panel/, "PreviewPage uses the readiness board");
+
+  for (const routeName of ["RoleSelectPage", "ScenarioSelectPage", "DifficultyPage"]) {
+    assert.match(functionBody(routeName), /<SetupFlowActions\b/, `${routeName} uses the shared setup actions`);
+    assert.match(functionBody(routeName), /<SetupSelectionSummary\b/, `${routeName} uses the shared selection summary`);
+  }
+
+});
+
+test("home uses three mode layouts on one shared Shadcn-style component system", () => {
+  assert.match(sourceBundle, /function InterviewHome\(/);
+  assert.match(sourceBundle, /function TrainingHome\(/);
+  assert.match(sourceBundle, /function WorkplaceHome\(/);
+  assert.match(sourceBundle, /<Button\b/);
+  assert.match(sourceBundle, /<Card\b/);
+  assert.match(sourceBundle, /<Progress\b/);
+  assert.match(sourceBundle, /<Accordion\b/);
+  assert.match(styles, /--accent-blue:\s*#0071e3/);
+  assert.match(styles, /--accent-orange:\s*#f05a24/);
+  assert.match(styles, /--accent-violet:\s*#6e5ed2/);
+  assert.doesNotMatch(styles, /--accent-green:/);
+  assert.match(styles, /\.interview-hero/);
+  assert.match(styles, /\.training-task-board/);
+  assert.match(styles, /\.workplace-workspace/);
+});
+
+test("setup catalog keeps every rendered role and difficulty image available", () => {
+  for (const assetName of setupAssetFiles) {
+    assert.match(setupCatalogSource, new RegExp(assetName.replace(".", "\\.")), `${assetName} is imported by the catalog`);
+    assert.ok(existsSync(new URL(`../assets/${assetName}`, import.meta.url)), `${assetName} exists for Vite to bundle`);
+  }
+});
+
+test("home keeps each mode action-led and reuses shared section primitives", () => {
+  const homePage = functionBody("HomePage");
+  assert.match(homePage, /mode-home-page--\$\{mode\.id\}/);
+  assert.match(homePage, /<InterviewHome onNext=\{onNext\}/);
+  assert.match(homePage, /<TrainingHome onNext=\{onNext\}/);
+  assert.match(homePage, /<WorkplaceHome onNext=\{onNext\}/);
+  assert.match(sourceBundle, /function SectionIntro\(/);
+  assert.match(sourceBundle, /function ProcessCard\(/);
+  assert.match(sourceBundle, /function FooterCta\(/);
+  assert.match(sourceBundle, /export function HomeMotion\(/);
+  assert.match(sourceBundle, /export function HomeFooter\(/);
+  assert.match(sourceBundle, /function ContextVisual\(/);
+  assert.match(sourceBundle, /function DialogueComparison\(/);
+  assert.match(styles, /\.mode-footer-cta\s*\{/);
+  assert.match(styles, /\.mode-actions\s*\{/);
+  assert.match(styles, /\.product-stage\s*\{/);
+  assert.match(styles, /\.mode-context-visual\s*\{/);
+
+  for (const assetName of homeSceneAssetFiles) {
+    assert.match(sourceBundle, new RegExp(assetName.replace(".", "\\.")), `${assetName} is imported by a home component`);
+    assert.ok(existsSync(new URL(`../assets/${assetName}`, import.meta.url)), `${assetName} exists for Vite to bundle`);
+  }
+});

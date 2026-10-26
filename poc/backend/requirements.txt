@@ -1,0 +1,36 @@
+# Chrome 실시간 STT + faster-whisper 간투어 분석.
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic-settings
+email-validator   # 스키마 EmailStr 검증 — 누락 시 서버 기동 실패
+python-multipart
+pyjwt
+bcrypt
+numpy
+soundfile
+kiwipiepy
+sentence-transformers
+faster-whisper>=1.2.1
+# faster-whisper 1.2.1 passes metadata_errors, removed by newer PyAV releases.
+av==16.0.1
+
+pytest
+httpx
+
+# Exported Pose-Fit classifiers (no pickle deserialization at runtime)
+onnxruntime>=1.20.0,<2
+
+# Voice measurement v2 (2026-09-17 design; reference pitch/Praat are never scored)
+librosa==0.11.0
+praat-parselmouth==0.4.7
+silero-vad==6.2.1
+
+# Vertex Gemini authentication (uses local Application Default Credentials)
+google-auth[requests]>=2.0,<3
+
+# Windows exhibition NFC readers use PC/SC instead of browser Web NFC.
+pyscard==2.3.1; sys_platform == "win32"
+
+# Eleven v4 Turbo dialogue streaming
+websockets>=14,<17

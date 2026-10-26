@@ -1,0 +1,286 @@
+import { createStaticInterviewApi } from "./staticInterviewApi.js";
+
+const LOCAL_API_BASE = "/api";
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+const API_BASE = resolveApiBase(globalThis.__MIRROR_TING_API_BASE__ || import.meta.env?.VITE_API_URL);
+const CLIENT_KEY = "mirror-ting-client-key";
+const ACTIVE_SESSION = "mirror-ting-active-session";
+const STATIC_DEMO = String(import.meta.env?.VITE_STATIC_DEMO || "").toLowerCase() === "true";
+const staticRequest = STATIC_DEMO && typeof localStorage !== "undefined" ? createStaticInterviewApi(localStorage) : null;
+
+export class PocApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = "PocApiError";
+    this.status = status;
+  }
+}
+
+export function getClientKey() {
+  let clientKey = localStorage.getItem(CLIENT_KEY);
+  if (!clientKey) {
+    clientKey = crypto.randomUUID();
+    localStorage.setItem(CLIENT_KEY, clientKey);
+  }
+  return clientKey;
+}
+
+export function resolveApiBase(candidate) {
+  if (!candidate) return LOCAL_API_BASE;
+  if (candidate.startsWith("/")) return candidate;
+  try {
+    const url = new URL(candidate);
+    return LOOPBACK_HOSTS.has(url.hostname) ? candidate : LOCAL_API_BASE;
+  } catch {
+    return LOCAL_API_BASE;
+  }
+}
+
+async function request(path, { token, headers, ...options } = {}) {
+  if (staticRequest) return staticRequest(path, options);
+  const isFormData = options.body instanceof FormData;
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { "X-Session-Token": token } : {}),
+      ...headers,
+    },
+    ...options,
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    // FastAPI 422의 detail은 객체 배열이라 그대로 message에 넣으면 화면에
+    // "[object Object]"가 뜬다 — 문자열 detail만 통과시키고 나머지는 축약한다.
+    const detail = data?.detail;
+    const message =
+      typeof detail === "string" && detail
+        ? detail
+        : Array.isArray(detail)
+          ? "입력 형식이 올바르지 않아요. 다시 확인해 주세요."
+          : "서버를 실행하면 연습을 이어갈 수 있어요.";
+    throw new PocApiError(message, response.status);
+  }
+  return data;
+}
+
+export function getScenarios() {
+  return request("/scenarios");
+}
+
+export function getHealth() {
+  return request("/health");
+}
+
+export async function synthesizeSpeech(text, voice = "female", signal, streaming = false) {
+  const response = await fetch(`${API_BASE}/tts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice }),
+    signal,
+  });
+  if (!response.ok) {
+    throw new PocApiError("AI 음성을 만들 수 없어요.", response.status);
+  }
+  return streaming ? response : response.blob();
+}
+
+const SESSION_DIFFICULTIES = new Set(["basic", "pressure", "ultra_pressure"]);
+
+export function createSession({ accountToken, exhibition = false, serviceMode = "workplace", difficulty, mode, scenarioSlug, scenarioPrompt, selectedEpisodeId, consent, jobRole, nfcUid, nfcIssuedCount, kioskSessionId }) {
+  return request("/sessions", {
+    method: "POST",
+    ...(accountToken ? { headers: { Authorization: `Bearer ${accountToken}` } } : {}),
+    body: JSON.stringify({
+      difficulty: SESSION_DIFFICULTIES.has(difficulty) ? difficulty : "basic",
+      mode,
+      ...(scenarioPrompt ? { scenario_prompt: scenarioPrompt } : { scenario_slug: scenarioSlug }),
+      service_mode: serviceMode,
+      ...(exhibition ? { exhibition: true } : {}),
+      ...(!scenarioPrompt && selectedEpisodeId ? { selected_episode_id: selectedEpisodeId } : {}),
+      // ---- B2B 확장 (S-B2B-SESSION / S-B2B-NFC) — NFC·직무 흐름일 때만 실어 기존 계약을 보존한다.
+      // nfc_uid를 주면 서버가 카드의 직무·시나리오를 세션에 스탬프한다 (미등록 카드 404).
+      ...(jobRole ? { job_role: jobRole } : {}),
+      ...(nfcUid ? { nfc_uid: nfcUid } : {}),
+      ...(nfcIssuedCount != null ? { nfc_issued_count: nfcIssuedCount } : {}),
+      ...(kioskSessionId ? { kiosk_session_id: kioskSessionId } : {}),
+      client_key: getClientKey(),
+      consent: { agreed: consent, storage_policy: "none" },
+    }),
+  });
+}
+
+// ---- NFC (S-B2B-103~106) — 발급 키오스크·미러 태그 계약 ----
+
+// 리더 브리지 폴링 — since(마지막으로 본 seq) 이후 새 태그가 없으면 uid가 빈 문자열이다.
+export function getNfcTap(reader, since = 0) {
+  return request(`/nfc/tap?reader=${encodeURIComponent(reader)}&since=${since}`);
+}
+
+// 카드 발급/재발급 — 같은 uid는 직무를 덮어쓴다 (카드는 회전 소모품). 알 수 없는 직무면 422.
+export function issueNfcCard({ uid, jobRole, scenarioSlug, consentAgreed }) {
+  return request("/nfc/issue", {
+    method: "POST",
+    body: JSON.stringify({
+      uid,
+      ...(consentAgreed != null ? { consent_agreed: consentAgreed } : {}),
+      job_role: jobRole,
+      ...(scenarioSlug ? { scenario_slug: scenarioSlug } : {}),
+    }),
+  });
+}
+
+// 미러 시작 계약 — 태그된 카드의 직무·시나리오를 돌려준다. 미등록·폐기 카드는 404 →
+// 호출부가 수동 직무 선택 폴백 UI를 띄운다 (미인식이 체험 중단이 되면 안 된다).
+export function resolveNfcCard(uid) {
+  return request("/nfc/resolve", { method: "POST", body: JSON.stringify({ uid }) });
+}
+
+// poc 백엔드 계약: 오디오는 /audio(멀티파트 `file`), 답변 본문은 /response(JSON).
+// 한 멀티파트에 섞으면 422/500이 난다.
+//
+// 답변은 즉시 보내고, 녹음 업로드는 최종 분석을 시작하기 전에 완료한다.
+const pendingAudioUploads = new Map();
+const deferredAudioStarts = new Map();
+
+// Called when the next AI audio starts (or cannot play); final reports release any remainder.
+export function releaseDeferredAudio(session) {
+  const starts = deferredAudioStarts.get(session?.access_token);
+  deferredAudioStarts.delete(session?.access_token);
+  starts?.forEach(start => start());
+}
+export async function submitResponse(session, turnId, input) {
+  const uploadAudio = async () => {
+    try {
+      const audio = input.audio || await (input.prepareAudio ? input.prepareAudio() : input.audioReady);
+      if (!audio || audio.size === 0) return;
+      const form = new FormData();
+      form.append("voice_input", JSON.stringify(input.voiceInput || {}));
+      form.append("file", audio, `turn-${turnId}.wav`);
+      await request(`/sessions/${session.id}/turns/${turnId}/audio`, {
+        method: "POST",
+        token: session.access_token,
+        body: form,
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch {
+      // 오디오 분석은 부가 기능 — 업로드가 실패해도 텍스트 기반 분석으로 진행한다.
+    }
+  };
+  const postResponse = async () => {
+    const startedAt = performance.now();
+    const record = (event) => {
+      const timing = { turnId, event, atMs: performance.now(), elapsedMs: Math.round(performance.now() - startedAt) };
+      globalThis.__mirrorResponseTimings = [...(globalThis.__mirrorResponseTimings || []).slice(-99), timing];
+      console.info("[response-latency]", timing);
+    };
+    record("request-start");
+    try {
+      const result = await request(`/sessions/${session.id}/turns/${turnId}/response`, {
+        method: "POST",
+        token: session.access_token,
+        body: JSON.stringify({
+          text: input.text,
+          stt_source: input.sttSource || "text",
+          duration_ms: input.durationMs,
+          nonverbal: input.nonverbal || null,
+        }),
+      });
+      record("response-complete");
+      return result;
+    } catch (error) {
+      record("response-error");
+      throw error;
+    }
+  };
+  const deferredWorkplace = session.interaction?.mode === "workplace_continuous";
+  if (!deferredWorkplace && session.voice_analysis?.engine_version && (input.audio || input.audioReady || input.prepareAudio)) {
+    // 다음 대사 전 측정용 녹음을 먼저 전달하되 업로드 대기는 제한한다.
+    await uploadAudio();
+    return postResponse();
+  }
+  if (input.text?.trim()) {
+    const result = await postResponse();
+    // 녹음 보관은 대화 진행의 조건이 아니다. 업로드가 지연돼도 다음 턴을 막지 않는다.
+    const uploads = pendingAudioUploads.get(session.access_token) || new Set();
+    pendingAudioUploads.set(session.access_token, uploads);
+    let pending;
+    if (deferredWorkplace) {
+      const starts = deferredAudioStarts.get(session.access_token) || new Set();
+      deferredAudioStarts.set(session.access_token, starts);
+      pending = new Promise(resolve => starts.add(resolve)).then(uploadAudio);
+    } else pending = uploadAudio();
+    uploads.add(pending);
+    void pending.finally(() => {
+      uploads.delete(pending);
+      if (!uploads.size) pendingAudioUploads.delete(session.access_token);
+    });
+    return result;
+  }
+  await uploadAudio();
+  return postResponse();
+}
+
+export function observeTurn(session, turnId, input, signal) {
+  return request(`/sessions/${session.id}/turns/${turnId}/observation`, {
+    method: "POST", token: session.access_token, signal,
+    body: JSON.stringify({ text: input.text || "", stt_source: input.sttSource || "text",
+      duration_ms: input.durationMs, nonverbal: input.nonverbal }),
+  });
+}
+
+export async function finishSession(session) {
+  releaseDeferredAudio(session);
+  await Promise.all(pendingAudioUploads.get(session.access_token) || []);
+  return request(`/sessions/${session.id}/finish`, { method: "POST", token: session.access_token });
+}
+
+export function getSession(session) {
+  return request(`/sessions/${session.id}`, { token: session.access_token });
+}
+
+export function loadActiveSession() {
+  try { return JSON.parse(localStorage.getItem(ACTIVE_SESSION) || "null"); }
+  catch { return null; }
+}
+
+export function saveActiveSession(session) {
+  localStorage.setItem(ACTIVE_SESSION, JSON.stringify({ id: session.id, access_token: session.access_token }));
+}
+
+export function getProgress(session) {
+  return request(`/sessions/${session.id}/progress`, { token: session.access_token });
+}
+
+export function getReport(session) {
+  return request(`/sessions/${session.id}/report`, { token: session.access_token });
+}
+
+export function getHistory() {
+  return request(`/history?client_key=${encodeURIComponent(getClientKey())}`);
+}
+
+export function issueCode() {
+  return request("/codes", { method: "POST", body: JSON.stringify({ client_key: getClientKey() }) });
+}
+
+export function calibrateVoice(session, noise, speech, capture) {
+  const form = new FormData();
+  form.append("noise", noise, "noise.wav");
+  form.append("speech", speech, "speech.wav");
+  form.append("capture", JSON.stringify(capture));
+  return request(`/sessions/${session.id}/voice/calibration`, { method: "POST", token: session.access_token, body: form, signal: AbortSignal.timeout(30_000) });
+}
+
+export function invalidateVoiceCalibration(session) {
+  return request(`/sessions/${session.id}/voice/calibration`, { method: "DELETE", token: session.access_token });
+}
+
+// Re-link the committed session using its stored card snapshot, never create a new session.
+export function retryKioskLink(session) {
+  return request(`/sessions/${session.id}/kiosk-link`, { method: "POST", token: session.access_token });
+}
+
+export function transcribeRecording(session, audio, signal) {
+  const body = new FormData(); body.append('file', audio, 'speech.webm');
+  return request(`/sessions/${session.id}/transcribe`, {method:'POST', token:session.access_token, body, signal});
+}

@@ -1,0 +1,35 @@
+# Environment values and machine-specific AI configuration
+.env
+.env.*
+!.env.example
+*.env
+*.env.*
+!**/.env.example
+**/.env.bak*
+**/.local-*/
+/poc/backend/models/
+/mvp/public/models/
+**/whisper-models/
+**/onnxruntime/
+*.onnx
+*.pth
+*.pt
+*.safetensors
+*.bin
+*.pkl
+*.joblib
+# Local data and build products
+**/node_modules
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/dist/
+/poc/backend/media/
+/poc/backend/data/
+/poc/backend/work/
+**/output/
+*.db
+*.db-*
+*.sqlite*
+*.log
+.DS_Store

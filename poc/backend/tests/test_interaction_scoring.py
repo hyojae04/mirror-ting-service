@@ -1,0 +1,228 @@
+from types import SimpleNamespace as NS
+from app.services.judgments import event
+from app.services.interaction_scoring import calculate, audio_events
+from app.services.response_judgment import validate, analyze
+
+
+def result(events=(), measured=("response",)):
+    return {"measured": measured, "events": list(events)}
+
+
+def test_unmeasured_is_not_zero_and_axes_average():
+    assert calculate([])["total"] is None
+    out = calculate([result([event(1, "response", "goal_met", "positive", {"goal_id": "x"}, "")], ["response", "posture"])])
+    assert out["scores"] == {"response": 76, "voice": None, "expression": None, "posture": 75}
+    assert out["total"] == 75.5
+
+
+def test_repeats_caps_and_duplicate_ids():
+    events = [event(i, "posture", "sway", "negative", {}, "") for i in range(20)]
+    out = calculate([result(events + events, ["posture"])])
+    assert out["scores"]["posture"] == 72
+    assert len(out["changes"]["posture"]) == 3
+
+
+def test_contradictions_deduplicate_and_cap():
+    events = [event(i, "response", "contradiction", "negative", {"fact_key": "일정"}, "") for i in range(5)]
+    assert calculate([result(events)])["contradiction_deduction"] == 1
+    events += [event(10+i, "response", "contradiction", "negative", {"fact_key": f"사실{i}"}, "") for i in range(5)]
+    assert calculate([result(events)])["contradiction_deduction"] == 3
+
+
+def test_audio_excludes_estimates_intonation_and_missing_data():
+    assert not audio_events(1, {"estimated": True, "duration_sec": 10, "speech_rate_sps": 9}, "interview")
+    assert not audio_events(1, {"duration_sec": 10, "speech_rate_sps": 0}, "interview")
+    events = audio_events(1, {"duration_sec": 10, "speech_rate_sps": 4, "f0_cv": 8}, "interview")
+    assert [e["rule"] for e in events] == ["clear_pace"]
+
+
+def test_only_grounded_unexplained_conflicts_survive():
+    prior = NS(id=1, order=1, question_text="자료 확인은?", response_text="제가 담당자입니다")
+    current = NS(id=2, order=2, response_text="저는 담당자가 아닙니다", question_text="담당자입니까?")
+    conflict = {"previous_turn_id": 1, "previous_quote": "제가 담당자입니다", "current_quote": "저는 담당자가 아닙니다", "fact_key": "담당자", "confidence": .95, "explained_change": False}
+    assert len(validate({"conflicts": [conflict]}, current, [prior], [], [])[0]) == 1
+    for change in ({"previous_quote": "없는 말입니다"}, {"confidence": .7}, {"explained_change": True}, {"previous_turn_id": 99}):
+        assert not validate({"conflicts": [{**conflict, **change}]}, current, [prior], [], [])[0]
+
+
+def test_semantic_goals_require_real_quotes_and_ids():
+    current = NS(id=2, order=2, response_text="다음 날 맡겠습니다", question_text="일정은?")
+    goals = [{"id": "a", "label": "일정"}]
+    events, met = validate({"met_goals": [{"goal_id": "a", "quote": "다음 날"}, {"goal_id": "b", "quote": "맡겠습니다"}], "missing_goal_ids": ["a"]}, current, [], goals, ["a"])
+    assert met == ["a"] and [e["rule"] for e in events] == ["goal_met"]
+
+
+def test_judge_failure_abstains(monkeypatch):
+    from app.core.config import settings
+    from pydantic import SecretStr
+    import httpx
+    monkeypatch.setattr(settings, "gemini_api_key", SecretStr("test"))
+    def fail(*a, **kw):
+        raise httpx.ReadTimeout("timeout")
+    monkeypatch.setattr("app.services.response_judgment.httpx.post", fail)
+    assert analyze(NS(id=1, order=1, question_text="질문", response_text="답변"), [], [], []) == ([], [], "unavailable")
+
+
+def test_training_report_uses_shared_score_and_purges_internal_quotes(monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.seed.run import seed
+    from app.core.database import SessionLocal
+    from app.models import RoleplaySession
+    from app.services.judgments import event
+    seed()
+    def judge(current, history, goals, requested):
+        return [event(current.id, "response", "goal_met", "positive", {"goal_id": g["id"], "quote": current.response_text}, "목표 확인", key=g["id"]) for g in goals], [g["id"] for g in goals], "completed"
+    monkeypatch.setattr("app.services.cafe.analyze", lambda current, history, flow: {
+        "observations": [{"field": key, "value": value, "quote": current.response_text} for key, value in flow["cafe"]["expected"].items()],
+        "requested": [], "final_readback": True})
+    client = TestClient(app)
+    created = client.post('/api/sessions', json={"service_mode": "training", "mode": 5, "consent": {"agreed": True, "storage_policy": "none"}}).json()
+    sid = created["id"]
+    auth = {"X-Session-Token": created["access_token"]}
+    result = client.post(f'/api/sessions/{sid}/turns/{created["current_turn"]["id"]}/response', headers=auth, json={"text": "검증용 답변", "stt_source": "text", "duration_ms": 4000})
+    assert result.status_code == 200 and result.json()["finished"] is False  # 완료 버튼에서 확정
+    client.post(f'/api/sessions/{sid}/finish', headers=auth)
+    report = client.get(f'/api/sessions/{sid}/report', headers=auth).json()
+    assert report["total_score"] == 81  # 카페 가점은 +6 상한
+    assert report["fit_scores"]["voice"]["score"] is None
+    assert report["fit_scores"]["expression"]["score"] is None
+    assert "유효한 얼굴 표본이 수집되지 않아" in report["fit_scores"]["expression"]["summary"]
+    assert report["deep_analysis"]["interaction"]["version"] == "interaction-score-v8"
+    with SessionLocal() as db:
+        session = db.get(RoleplaySession, sid)
+        assert "judgments" not in session.rapport
+        assert all(not t.response_text for t in session.turns)
+
+
+def test_same_quotes_with_different_fact_names_are_one_conflict():
+    def conflict(turn, name, before="제가 담당자입니다", after="제가 담당자가 아닙니다"):
+        return event(turn, "response", "contradiction", "negative", {
+            "fact_key": name, "previous_quote": before, "quote": after}, "")
+    events = [conflict(2, "업무 담당자"), conflict(3, "담당자 여부"),
+              conflict(4, "다른 명칭", "제가담당자가아닙니다", "제가담당자입니다")]
+    out = calculate([result(events)])
+    assert out["contradiction_deduction"] == 1
+    assert len(out["contradictions"]) == 1
+    events.append(conflict(5, "마감일", "마감은 월요일", "마감은 금요일"))
+    assert calculate([result(events)])["contradiction_deduction"] == 2
+
+
+def test_confirmation_uses_same_aliases_as_scoring_and_reads_legacy_names():
+    from app.services.contradictions import keys, confirmed_keys
+    first = {"fact_key": "업무 담당자", "previous_quote": "제가 담당자입니다", "quote": "담당자가 아닙니다"}
+    renamed = {**first, "fact_key": "담당자 여부"}
+    confirmed = confirmed_keys(list(keys(first)))
+    assert keys(renamed) & confirmed
+    assert keys(first) & confirmed_keys([" 업무담당자 "])
+
+
+def test_goal_judgment_calls_gemini_with_grounded_evidence(monkeypatch):
+    import json
+    import httpx
+    from pydantic import SecretStr
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "gemini_api_key", SecretStr("gemini-test"))
+    monkeypatch.setattr(settings, "openai_api_key", SecretStr(""))
+    current = NS(id=2, order=2, question_text="일정은?", response_text="내일까지 하겠습니다")
+    prior = NS(id=1, order=1, question_text="자료 확인은?", response_text="자료를 확인했습니다")
+    def respond(url, **kwargs):
+        assert url.endswith(f"/v1beta/models/{settings.gemini_model}:generateContent")
+        assert kwargs["headers"] == {"x-goog-api-key": "gemini-test"}
+        body = kwargs["json"]
+        assert body["generationConfig"]["responseMimeType"] == "application/json"
+        payload = json.loads(body["contents"][0]["parts"][0]["text"])
+        assert payload["requested_goal"] == ["schedule"]
+        assert payload["history"] == [{"turn_id": 1, "question": prior.question_text, "answer": prior.response_text}]
+        data = {"met_goals": [{"goal_id": "schedule", "quote": "내일까지"}]}
+        return httpx.Response(200, request=httpx.Request("POST", url), json={
+            "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(data)}]}}]})
+    monkeypatch.setattr("app.services.response_judgment.httpx.post", respond)
+    events, met, status = analyze(current, [prior, current], [{"id": "schedule", "label": "일정 확인"}], ["schedule"])
+    assert status == "completed" and met == ["schedule"]
+    assert events[0]["evidence"]["quote"] == "내일까지"
+
+
+def test_goal_judgment_rejects_blocked_truncated_and_invalid_gemini(monkeypatch):
+    import httpx
+    from pydantic import SecretStr
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "gemini_api_key", SecretStr("test"))
+    for payload in [
+        {"promptFeedback": {"blockReason": "SAFETY"}},
+        {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": "{}"}]}}]},
+        {"candidates": []},
+        {"candidates": [{"content": {"parts": [{"text": "invalid json"}]}}]},
+    ]:
+        monkeypatch.setattr("app.services.response_judgment.httpx.post", lambda url, **kw: httpx.Response(
+            200, request=httpx.Request("POST", url), json=payload))
+        assert analyze(NS(id=1, order=1, question_text="질문", response_text="답변"), [], [], []) == ([], [], "unavailable")
+
+
+def test_goal_judgment_missing_gemini_key_does_not_call_openai(monkeypatch):
+    from pydantic import SecretStr
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "gemini_api_key", SecretStr(""))
+    monkeypatch.setattr(settings, "openai_api_key", SecretStr("unused"))
+    def unexpected(*args, **kwargs):
+        raise AssertionError("Missing Gemini key must abstain without a network request")
+    monkeypatch.setattr("app.services.response_judgment.httpx.post", unexpected)
+    assert analyze(NS(question_text="질문", response_text="답변"), [], [], []) == ([], [], "unavailable")
+
+
+def test_health_tracks_gemini_goal_judge_instead_of_openai_key(monkeypatch):
+    from pydantic import SecretStr
+    from app.core.config import settings
+    from app.main import health
+
+    monkeypatch.setattr('app.main._ollama_status', lambda: {})
+    monkeypatch.setattr('app.ai.stt.get_stt_provider', lambda: None)
+    monkeypatch.setattr('app.ai.semantic_match.available', lambda: False)
+    monkeypatch.setattr('app.ai.text_match.kiwi_available', lambda: False)
+    monkeypatch.setattr('app.services.dialogue.availability.dialogue_ready', lambda: True)
+    monkeypatch.setattr('app.services.tts.elevenlabs_ready', lambda: False)
+    for gemini, openai, missing in [('', 'test', True), ('test', '', False)]:
+        monkeypatch.setattr(settings, 'gemini_api_key', SecretStr(gemini))
+        monkeypatch.setattr(settings, 'openai_api_key', SecretStr(openai))
+        reasons = health()['degraded_reasons']
+        assert any('목표 판정 미가동' in reason and 'Gemini' in reason for reason in reasons) is missing
+        assert not any('OpenAI 키가 없어 응답 분석' in reason for reason in reasons)
+
+
+def test_missing_goal_requires_grounded_explicit_request():
+    from types import SimpleNamespace
+    from app.services.response_judgment import validate
+    current = SimpleNamespace(id=1, order=1, question_text='완료 일정을 알려 주세요.', response_text='자료를 확인하겠습니다.')
+    goals = [{'id':'schedule','label':'완료 일정'}]
+    assert not validate({'missing_goal_ids':['schedule']}, current, [], goals, ['schedule'])[0]
+    hit = {'goal_id':'schedule','request_quote':'완료 일정을 알려 주세요.','confidence':.95}
+    for override in ({'request_quote':'담당자를 알려 주세요.'}, {'confidence':.5}, {'goal_id':'unknown'}):
+        assert not validate({'missing_goals':[{**hit, **override}]}, current, [], goals, ['schedule'])[0]
+    events, _ = validate({'missing_goals':[hit, hit]}, current, [], goals, ['schedule'])
+    assert len(events) == 1 and events[0]['evidence']['request_quote'] == current.question_text
+    assert calculate([{'measured':['response'],'events':events}])['scores']['response'] == 74.5
+
+
+def test_related_incomplete_answer_outscores_irrelevant_answer_in_every_context():
+    from app.services.context_scoring import POLICIES
+    for kind, multipliers in POLICIES.items():
+        def score(rule):
+            return calculate([{'measured':['response'], 'context_policy':{'kind':kind,'status':'classified','multipliers':multipliers},
+                'events':[event(1,'response',rule,'negative',{'goal_id':'g'},'')]}])['scores']['response']
+        assert score('missing_goal') > score('off_topic')
+
+
+def test_empty_analysis_requires_completed_status_and_whole_answer_evidence(monkeypatch):
+    import httpx
+    import json
+    from pydantic import SecretStr
+    from app.core.config import settings
+    monkeypatch.setattr(settings, 'gemini_api_key', SecretStr('test'))
+    current = NS(id=1, order=1, question_text='확인해 주세요.', response_text='자료는 책상 위에 있습니다.')
+    for data, expected in [({}, 'uncertain'),
+            ({'assessment_status':'completed', 'assessed_quote':'없는 발언'}, 'uncertain'),
+            ({'assessment_status':'uncertain', 'assessed_quote':current.response_text}, 'uncertain'),
+            ({'assessment_status':'completed', 'assessed_quote':current.response_text}, 'completed')]:
+        monkeypatch.setattr('app.services.response_judgment.httpx.post', lambda url, **kw: httpx.Response(
+            200, request=httpx.Request('POST', url), json={'candidates':[{'content':{'parts':[{'text':json.dumps(data)}]}}]}))
+        assert analyze(current, [], [], []) == ([], [], expected)

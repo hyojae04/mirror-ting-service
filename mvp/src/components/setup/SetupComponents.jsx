@@ -1,0 +1,145 @@
+import React from "react";
+import { Check } from "reicon-react/icons/Check";
+import { Clock3 } from "reicon-react/icons/Clock3";
+import { Bulb2 } from "reicon-react/icons/Bulb2";
+import { ShieldCheck } from "reicon-react/icons/ShieldCheck";
+import { Sparkles } from "reicon-react/icons/Sparkles";
+import { ArrowRight } from "reicon-react/icons/ArrowRight";
+import { IconGlyph } from "../ui/IconGlyph";
+import { Badge, Button, Card } from "../ui/shadcn";
+
+export function PageTitle({ eyebrow, title, subtitle }) {
+  return (
+    <div className="page-title">
+      {eyebrow && <p>{eyebrow}</p>}
+      <h1>{title}</h1>
+      {subtitle && <p className="page-subtitle">{subtitle}</p>}
+    </div>
+  );
+}
+
+export function SetupMotionPage({ children, as = "section", className = "" }) {
+  const MotionPage = as === "div" ? "div" : "section";
+  return (
+    <MotionPage
+      className={`page selection-page setup-flow-page ${className}`}
+    >
+      {children}
+    </MotionPage>
+  );
+}
+
+function PrimaryBar({ label, onClick, className = "", disabled = false }) {
+  return (
+    <Button className={`primary-bar ${className}`} size="lg" type="button" onClick={onClick} disabled={disabled}>
+      {label}
+      <ArrowRight size={24} />
+    </Button>
+  );
+}
+
+export function SetupFlowActions({ onPrev, label, onNext, nextDisabled = false }) {
+  return (
+    <div className="setup-flow-actions">
+      <Button className="setup-back-button" variant="outline" size="lg" type="button" onClick={onPrev}>이전</Button>
+      <PrimaryBar className="setup-next-button" label={label} onClick={onNext} disabled={nextDisabled} />
+    </div>
+  );
+}
+
+export function MiniStepper({ items, active }) {
+  return (
+    <div className="mini-stepper">
+      <Badge className="setup-step-count">Step {active + 1} / {items.length}</Badge>
+      <div className="mini-step-track">
+        {items.map(([num, label], index) => (
+          <React.Fragment key={label}>
+            <span className={index === active ? "active" : ""} aria-current={index === active ? "step" : undefined}><b>{num}</b>{label}</span>
+            {index < items.length - 1 && <i />}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ChoiceSection({ icon, image, title, description, children, columns = "three", className = "", quiet = false }) {
+  return (
+    <section className={`choice-section ${className}`} aria-label={quiet ? title : undefined}>
+      {!quiet && <div className="choice-section-heading">
+        {(image || icon) && <span className="choice-section-icon">{image ? <img className="selection-section-asset" src={image} alt="" aria-hidden="true" width="256" height="256" /> : <IconGlyph icon={icon} size={24} />}</span>}
+        <div>
+          <h2>{title}</h2>
+          {description && <p>{description}</p>}
+        </div>
+      </div>}
+      <div className={`choice-grid ${columns}`}>{children}</div>
+    </section>
+  );
+}
+
+export function ChoiceCard({ icon, image, title, text, detail, badge, selected = false, compact = false, minimalContent = false, tone = "blue", variant = "default", onClick }) {
+  return (
+    <Button
+      variant="outline"
+      className={`choice-card ${variant} ${selected ? "selected" : ""} ${compact ? "compact" : ""}`}
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+    >
+      {image ? <img className="choice-asset" src={image} alt="" aria-hidden="true" width="256" height="256" loading="lazy" decoding="async" /> : <span className={`choice-icon ${tone}`}><IconGlyph icon={icon} size={36} /></span>}
+      <span className="choice-copy">
+        <strong>{title}{badge && <i className={`choice-badge ${tone}`}>{badge}</i>}</strong>
+        {!minimalContent && <small>{text}</small>}
+        {detail && <em>{detail}</em>}
+      </span>
+      {selected && <b><Check size={16} /></b>}
+    </Button>
+  );
+}
+
+function SummaryItem({ icon, image, label, value, tone = "blue" }) {
+  return (
+    <div className="summary-item">
+      {image ? <img className="summary-asset" src={image} alt="" aria-hidden="true" width="256" height="256" /> : <span className={`choice-icon ${tone}`}><IconGlyph icon={icon} size={28} /></span>}
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </div>
+    </div>
+  );
+}
+
+function SummaryPanel({ children, className = "" }) {
+  return <Card className={`summary-panel card ${className}`} role="region" aria-label="선택 요약">{children}</Card>;
+}
+
+export function SetupSelectionSummary({ counterpart, scenario, scenarioImage, difficulty, modeLabel, tip }) {
+  return (
+    <SummaryPanel className="setup-summary-panel">
+      <header className="setup-summary-heading">
+        <h2><Sparkles size={21} /> 선택 요약</h2>
+        <p>현재 선택한 설정을 확인해요.</p>
+      </header>
+      <div className="setup-summary-selections">
+        <SummaryItem image={counterpart?.image} icon="role" label="직무" value={counterpart?.title || "직무를 선택해 주세요"} tone="blue" />
+        <SummaryItem image={scenarioImage} icon="briefcase" label="연습 상황" value={scenario?.title?.replace(" — ", " —\n") || "다음 단계에서 선택"} tone="blue" />
+        <SummaryItem image={difficulty?.image} icon="normal" label="난이도" value={difficulty?.title || "다음 단계에서 선택"} tone={difficulty?.tone || "blue"} />
+        <div className="time-box setup-summary-time">
+          <Clock3 size={20} />
+          <div><span>예상 소요 시간</span><strong>{modeLabel}</strong></div>
+        </div>
+      </div>
+      <footer className="setup-summary-guidance">
+        <div className="tip-box setup-summary-tip">
+          <Bulb2 size={22} />
+          <div>
+            <strong>팁</strong>
+            <p>{tip}</p>
+          </div>
+        </div>
+        <p className="setup-summary-note"><ShieldCheck size={17} /> 설정은 연습을 시작하기 전까지 바꿀 수 있어요.</p>
+      </footer>
+    </SummaryPanel>
+  );
+}

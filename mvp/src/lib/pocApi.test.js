@@ -1,0 +1,477 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+globalThis.__MIRROR_TING_API_BASE__ = "http://127.0.0.1:8000/api";
+const storage = new Map();
+globalThis.localStorage = {
+  getItem: (key) => storage.get(key) || null,
+  setItem: (key, value) => storage.set(key, String(value)),
+};
+const { releaseDeferredAudio, finishSession, retryKioskLink, createSession, getNfcTap, issueNfcCard, resolveApiBase, resolveNfcCard, submitResponse, synthesizeSpeech } = await import("./pocApi.js");
+
+test("resolveApiBase keeps exhibition traffic on the local PC", () => {
+  assert.equal(resolveApiBase("https://remote.example.com/api"), "/api");
+  assert.equal(resolveApiBase("http://192.168.0.20:8000/api"), "/api");
+  assert.equal(resolveApiBase("http://127.0.0.1:8000/api"), "http://127.0.0.1:8000/api");
+  assert.equal(resolveApiBase("http://localhost:8000/api"), "http://localhost:8000/api");
+  assert.equal(resolveApiBase("/api"), "/api");
+});
+
+test("synthesizeSpeech sends the AI line and server voice route", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response("mp3", { status: 200, headers: { "Content-Type": "audio/mpeg" } });
+  };
+
+  const audio = await synthesizeSpeech("안녕하세요.");
+
+  assert.equal(calls[0].url, "http://127.0.0.1:8000/api/tts");
+  assert.equal(calls[0].options.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { text: "안녕하세요.", voice: "female" });
+  assert.equal(audio.type, "audio/mpeg");
+});
+
+test("createSession preserves the PoC setup payload", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ id: "session-1" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await createSession({ difficulty: "pressure", mode: 10, scenarioSlug: "cloud-meet", consent: true });
+
+  assert.equal(calls[0].url, "http://127.0.0.1:8000/api/sessions");
+  assert.equal(calls[0].options.method, "POST");
+  const payload = JSON.parse(calls[0].options.body);
+  assert.match(payload.client_key, /.+/);
+  assert.deepEqual(payload, {
+    difficulty: "pressure",
+    mode: 10,
+    scenario_slug: "cloud-meet",
+    service_mode: "workplace",
+    client_key: payload.client_key,
+    consent: { agreed: true, storage_policy: "none" },
+  });
+});
+
+test("createSession preserves ultra pressure for the persona prompt", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ id: "session-2" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await createSession({ difficulty: "ultra_pressure", mode: 10, scenarioSlug: "release-schedule-alignment", consent: true });
+
+  assert.equal(JSON.parse(calls[0].options.body).difficulty, "ultra_pressure");
+});
+
+test("prompt generation replaces the selected catalog scenario and episode", async () => {
+  let sent;
+  globalThis.fetch = async (_url, options) => {
+    sent = JSON.parse(options.body);
+    return new Response(JSON.stringify({ id: 100 }), { headers: { "Content-Type": "application/json" } });
+  };
+  await createSession({ scenarioPrompt: "팀장과 프로젝트 일정과 범위를 협의하는 상황을 연습하고 싶습니다.",
+    scenarioSlug: "old-scenario", selectedEpisodeId: 42, serviceMode: "workplace", difficulty: "pressure", mode: 5, consent: true });
+  assert.ok(sent.scenario_prompt);
+  assert.equal("scenario_slug" in sent, false);
+  assert.equal("selected_episode_id" in sent, false);
+  assert.equal(sent.difficulty, "pressure");
+});
+
+// NFC 시작(S-B2B-NFC): nfc_uid·job_role은 카드 흐름일 때만 실린다 — 기존 계약을 오염시키지 않는다.
+test("createSession stamps the NFC card fields only when provided", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ id: "session-nfc" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await createSession({ difficulty: "basic", mode: 5, scenarioSlug: "ondo-cafe-crew", consent: true, jobRole: "cafe_crew", nfcUid: "04A1B2C3" });
+  const nfcPayload = JSON.parse(calls[0].options.body);
+  assert.equal(nfcPayload.job_role, "cafe_crew");
+  assert.equal(nfcPayload.nfc_uid, "04A1B2C3");
+  assert.equal(nfcPayload.scenario_slug, "ondo-cafe-crew");
+
+  // 수동 폴백은 직무만, 일반 흐름은 둘 다 없이 — 미전달 필드는 body에 나타나지 않는다.
+  await createSession({ difficulty: "basic", mode: 5, scenarioSlug: "release-schedule-alignment", consent: true, jobRole: "office_admin", nfcUid: "" });
+  const manualPayload = JSON.parse(calls[1].options.body);
+  assert.equal(manualPayload.job_role, "office_admin");
+  assert.equal("nfc_uid" in manualPayload, false);
+
+  await createSession({ difficulty: "basic", mode: 5, scenarioSlug: "release-schedule-alignment", consent: true });
+  const plainPayload = JSON.parse(calls[2].options.body);
+  assert.equal("job_role" in plainPayload, false);
+  assert.equal("nfc_uid" in plainPayload, false);
+});
+
+test("createSession falls back to basic when difficulty is missing", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push(options.body);
+    return new Response(JSON.stringify({ id: "session-3" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await createSession({ mode: 5, scenarioSlug: "ondo-cafe-crew", serviceMode: "training", consent: true });
+  assert.equal(JSON.parse(calls[0]).difficulty, "basic");
+  assert.equal(JSON.parse(calls[0]).service_mode, "training");
+});
+
+test("NFC endpoints follow the backend contract paths", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ seq: 2, uid: "04AA", reader: "kiosk", at: 1 }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await getNfcTap("kiosk", 7);
+  assert.equal(calls[0].url, "http://127.0.0.1:8000/api/nfc/tap?reader=kiosk&since=7");
+
+  await issueNfcCard({ uid: "04AA", jobRole: "cafe_crew" });
+  assert.equal(calls[1].url, "http://127.0.0.1:8000/api/nfc/issue");
+  const issueBody = JSON.parse(calls[1].options.body);
+  assert.equal(issueBody.job_role, "cafe_crew");
+  assert.equal("scenario_slug" in issueBody, false); // 미지정이면 서버 기본 팩을 쓴다
+
+  await resolveNfcCard("04AA");
+  assert.equal(calls[2].url, "http://127.0.0.1:8000/api/nfc/resolve");
+  assert.deepEqual(JSON.parse(calls[2].options.body), { uid: "04AA" });
+});
+
+test("createSession sends the selected backend episode", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ id: "session-3" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await createSession({ difficulty: "basic", mode: 5, scenarioSlug: "release-schedule-alignment", selectedEpisodeId: 42, consent: true });
+
+  assert.equal(JSON.parse(calls[0].options.body).selected_episode_id, 42);
+});
+
+// 백엔드 계약(poc/backend sessions.py): 오디오는 /audio(멀티파트 `file`),
+// 답변 본문은 /response(JSON ResponseIn) — 한 멀티파트에 섞으면 422가 난다.
+// 텍스트가 있으면 /response가 먼저다: 오디오를 먼저 올리면 서버가 빈 턴으로 보고
+// 녹음 전체를 whisper로 전사해 다음 질문이 수십 초 늦어진다.
+test("submitResponse posts /response first then uploads audio (skips wasteful server STT)", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ finished: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const audio = new Blob(["turn audio"], { type: "audio/wav" });
+  await submitResponse(
+    { id: "session-1", access_token: "token-1" },
+    "turn-1",
+    {
+      text: "I will send the report today.",
+      audio,
+      sttSource: "webspeech",
+      durationMs: 1234,
+      nonverbal: { avg_shoulder_tilt_deg: 2.5, frames: 20 },
+    },
+  );
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, "http://127.0.0.1:8000/api/sessions/session-1/turns/turn-1/response");
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(calls[0].options.headers["Content-Type"], "application/json");
+  assert.deepEqual(JSON.parse(calls[0].options.body), {
+    text: "I will send the report today.",
+    stt_source: "webspeech",
+    duration_ms: 1234,
+    nonverbal: { avg_shoulder_tilt_deg: 2.5, frames: 20 },
+  });
+
+  assert.equal(calls[1].url, "http://127.0.0.1:8000/api/sessions/session-1/turns/turn-1/audio");
+  assert.equal(calls[1].options.method, "POST");
+  assert.equal(calls[1].options.headers["X-Session-Token"], "token-1");
+  assert.ok(calls[1].options.body instanceof FormData);
+  assert.ok(calls[1].options.body.get("file") instanceof File);
+});
+
+test("submitResponse uploads audio first only when there is no text (offline STT fallback)", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ finished: false }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await submitResponse(
+    { id: "session-1", access_token: "token-1" },
+    "turn-1",
+    { text: "", audio: new Blob(["x"], { type: "audio/wav" }), sttSource: "text", durationMs: 10, nonverbal: null },
+  );
+
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].url.endsWith("/audio"));
+  assert.ok(calls[1].url.endsWith("/response"));
+});
+
+test("submitResponse still posts the answer when the audio upload fails", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    if (url.endsWith("/audio")) return new Response("{}", { status: 500 });
+    return new Response(JSON.stringify({ finished: false }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const result = await submitResponse(
+    { id: "session-1", access_token: "token-1" },
+    "turn-1",
+    { text: "text only", audio: new Blob(["x"], { type: "audio/wav" }), durationMs: 10, nonverbal: null },
+  );
+
+  assert.equal(result.finished, false);
+  assert.equal(calls.length, 2);
+  assert.ok(calls[0].url.endsWith("/response"));
+  assert.ok(calls[1].url.endsWith("/audio"));
+});
+
+test("submitResponse returns the dialogue result when optional audio upload never settles", async () => {
+  globalThis.fetch = async (url) => {
+    if (url.endsWith("/audio")) return new Promise(() => {});
+    return new Response(JSON.stringify({ finished: false, next_turn: { id: "turn-2" } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const result = await Promise.race([
+    submitResponse(
+      { id: "session-1", access_token: "token-1" },
+      "turn-1",
+      { text: "typed answer", audio: new Blob(["x"], { type: "audio/wav" }), durationMs: 10, nonverbal: null },
+    ),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("audio upload stalled the turn submission")), 30)),
+  ]);
+
+  assert.equal(result.finished, false);
+  assert.equal(result.next_turn.id, "turn-2");
+});
+
+test("submitResponse skips the audio route when there is no recording", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ finished: false }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  await submitResponse(
+    { id: "session-1", access_token: "token-1" },
+    "turn-1",
+    { text: "typed answer", audio: null, sttSource: "text", durationMs: 10, nonverbal: null },
+  );
+
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0].url.endsWith("/response"));
+  assert.equal(JSON.parse(calls[0].options.body).stt_source, "text");
+});
+
+test("422 detail 배열은 사용자용 문구로 축약된다 — '[object Object]' 토스트 방지", async () => {
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({ detail: [{ type: "string_pattern_mismatch", loc: ["body", "uid"] }] }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+
+  await assert.rejects(
+    issueNfcCard({ uid: "not-hex!", jobRole: "cafe_crew" }),
+    (error) => {
+      assert.equal(typeof error.message, "string");
+      assert.ok(!error.message.includes("[object"));
+      assert.ok(error.message.includes("입력 형식"));
+      return true;
+    },
+  );
+});
+
+test("문자열 detail(HTTPException)은 그대로 사용자에게 전달된다", async () => {
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ detail: "등록되지 않았거나 폐기된 카드입니다" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  await assert.rejects(resolveNfcCard("04AABBCC"), (error) => {
+    assert.equal(error.message, "등록되지 않았거나 폐기된 카드입니다");
+    assert.equal(error.status, 404);
+    return true;
+  });
+});
+
+
+test("finish waits for the last audio upload before starting Whisper analysis", async () => {
+  const originalFetch = globalThis.fetch;
+  let release;
+  const calls = [];
+  globalThis.fetch = async (url) => {
+    calls.push(url);
+    if (url.endsWith("/audio")) await new Promise(resolve => { release = resolve; });
+    return new Response("{}", { status: 200 });
+  };
+  try {
+    const session = { id: "pending", access_token: "pending-token" };
+    await submitResponse(session, 1, { text: "답변", audio: new Blob(["wav"]) });
+    const finish = finishSession(session);
+    await Promise.resolve();
+    assert.equal(calls.some(url => url.endsWith("/finish")), false);
+    release();
+    await finish;
+    assert.ok(calls.at(-1).endsWith("/finish"));
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("mirror start binds the kiosk consent to a specific card issuance", async () => {
+  const bodies = [];
+  globalThis.fetch = async (_url, options) => {
+    bodies.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ id: 1 }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  await issueNfcCard({ uid: "AABB", jobRole: "office_admin", scenarioSlug: "workplace-conversation", consentAgreed: true });
+  await createSession({ mode: 5, consent: true, nfcUid: "AABB", nfcIssuedCount: 3 });
+  assert.equal(bodies[0].consent_agreed, true);
+  assert.equal(bodies[0].scenario_slug, "workplace-conversation");
+  assert.equal(bodies[1].nfc_issued_count, 3);
+});
+
+test("kiosk snapshot remains in create payload and retry uses the existing capability", async () => {
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ status: "linked" }), { status: 200 });
+  };
+  await createSession({ mode: 5, consent: true, jobRole: "office_admin", nfcUid: "04AABBCC", kioskSessionId: "MW2610030001" });
+  const body = JSON.parse(calls[0].options.body);
+  assert.equal(body.nfc_uid, "04AABBCC");
+  assert.equal(body.kiosk_session_id, "MW2610030001");
+  await retryKioskLink({ id: 21, access_token: "test-only-capability" });
+  assert.equal(calls[1].url, "http://127.0.0.1:8000/api/sessions/21/kiosk-link");
+  assert.equal(calls[1].options.headers["X-Session-Token"], "test-only-capability");
+  assert.equal(calls[1].options.method, "POST");
+  assert.equal(calls[1].options.body, undefined);
+});
+
+test("exhibition flag is explicitly sent for short mirror sessions", async () => {
+  let payload;
+  globalThis.fetch = async (url, options) => {
+    payload = JSON.parse(options.body);
+    return new Response(JSON.stringify({id:1}), {status:200});
+  };
+  await createSession({exhibition:true,serviceMode:'workplace',mode:5,consent:true});
+  assert.equal(payload.exhibition,true);
+});
+
+
+test("workplace reply does not wait for audio conversion and uploads only after TTS starts", async () => {
+  const calls = [];
+  globalThis.fetch = async (url) => { calls.push(url); return new Response(JSON.stringify({next_turn:{id:2}})); };
+  let converted;
+  const audioReady = new Promise(resolve => { converted = resolve; });
+  const session = {id:21,access_token:"deferred-voice",interaction:{mode:"workplace_continuous"},voice_analysis:{engine_version:"voice-measure-v2"}};
+  const result = await submitResponse(session,1,{text:"개인적인 내용은 말하기 어렵습니다.",audioReady});
+  assert.equal(result.next_turn.id,2);
+  assert.equal(calls.length,1);assert.ok(calls[0].endsWith("/response"));
+  converted(new Blob(["audio"],{type:"audio/wav"}));
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls.length,1);
+  releaseDeferredAudio(session);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls.length,2);assert.ok(calls[1].endsWith("/audio"));
+  await finishSession(session);
+});
+
+test("final workplace turn flushes deferred audio before starting its report", async () => {
+  const calls=[];let finishUpload;
+  globalThis.fetch = async url => {
+    calls.push(url);
+    if(url.endsWith("/audio")) await new Promise(resolve=>{finishUpload=resolve;});
+    return new Response(JSON.stringify({finished:true}));
+  };
+  const session={id:22,access_token:"final-deferred",interaction:{mode:"workplace_continuous"}};
+  await submitResponse(session,5,{text:"그 내용은 공개하지 않겠습니다.",audio:new Blob(["audio"])});
+  const finishing=finishSession(session);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls.length,2);assert.ok(calls[1].endsWith("/audio"));
+  finishUpload();await finishing;
+  assert.ok(calls[2].endsWith("/finish"));
+});
+
+
+test("workplace WAV encoding starts only after playback release, and final reports still await it", async () => {
+  const calls = [];
+  let conversions = 0;
+  let resolveAudio, retained = false;
+  const audioReady = new Promise(resolve => { resolveAudio = resolve; });
+  void audioReady.then(() => { retained = true; });
+  globalThis.fetch = async url => {
+    calls.push(url);
+    return new Response(JSON.stringify({ next_turn: { id: 2 } }));
+  };
+  const session = { id: 24, access_token: "lazy-wav", interaction: { mode: "workplace_continuous" } };
+  await submitResponse(session, 1, {
+    text: "저는 오늘 참석하겠습니다.",
+    audioReady,
+    prepareAudio: async () => {
+      conversions++;
+      const audio = new Blob(["audio"], { type: "audio/wav" });
+      resolveAudio(audio);
+      return audio;
+    },
+  });
+  assert.equal(conversions, 0);
+  assert.equal(retained, false);
+  assert.equal(calls.length, 1);
+  releaseDeferredAudio(session);
+  await finishSession(session);
+  assert.equal(conversions, 1);
+  assert.equal(retained, true);
+  assert.ok(calls[1].endsWith("/audio"));
+  assert.ok(calls[2].endsWith("/finish"));
+});
+
+
+test("signed-in session creation preserves JSON content type with account authorization", async () => {
+  let sent;
+  globalThis.fetch = async (_url, options) => {
+    sent = options;
+    return new Response(JSON.stringify({ id: 100 }), { headers: { "Content-Type": "application/json" } });
+  };
+  await createSession({ accountToken: "test-account", scenarioPrompt: "팀장에게 진행 상황을 보고하는 연습을 하고 싶습니다.", consent: true, mode: 5 });
+  assert.equal(sent.headers.Authorization, "Bearer test-account");
+  assert.equal(sent.headers["Content-Type"], "application/json");
+});

@@ -1,0 +1,142 @@
+from pathlib import Path
+from typing import Literal
+
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    app_name: str = "4-Fit Mirror-Ting API"
+    database_url: str = "sqlite:///./mirror-ting.db"
+    jwt_secret: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24
+    # 5173 = 전시 mvp · 5174 = B2B 웹앱(poc/frontend) — 동시 구동을 전제로 둘 다 허용.
+    # (웹앱 dev는 vite 프록시로 동일 출처라 CORS 무관하지만, VITE_API_URL로 직접
+    # 호출하는 구성에서도 죽지 않도록 방어적으로 열어 둔다)
+    cors_origins: list[str] = [
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:5174", "http://127.0.0.1:5174",
+    ]
+    media_dir: Path = Path("./media")
+    # 단일 Docker 배포에서는 빌드된 mvp를 API와 같은 origin에서 제공한다.
+    frontend_dist_dir: Path | None = None
+    # 운영 API(/api/admin: 전시 초기화·CSV 내보내기) 보호 토큰 — X-Admin-Token 헤더로 대조.
+    # 비우면 무인증(개발 편의). 전시장 네트워크에 열 때는 반드시 설정할 것.
+    admin_token: str = ""
+    # 전시/운영 배포 안전장치 — True면 기본 JWT 시크릿·빈 admin 토큰으로 기동을 거부한다.
+    require_secure: bool = False
+    # 익명/계정 저장 동의 시 음성 파일 보관 일수 (S-CBYKOH). '미저장' 동의는 분석 직후 삭제.
+    media_retention_days: int = 7
+    # Server-to-server kiosk bridge. Never include its secret in browser responses.
+    idprinter_base_url: str = ""
+    idprinter_bridge_token: SecretStr = SecretStr("")
+    # 관리자 API(/admin/*) 인증 강제 여부 — 전시 키오스크는 False(로컬 단독 운영),
+    # 기관 납품 시 True + role='admin' 계정 필수 (app.seed.make_admin으로 승격)
+    admin_auth_required: bool = False
+
+    # Chrome은 실시간 자막, Whisper는 녹음 후 간투어 전사에만 사용한다.
+    stt_whisper_model: str = "./whisper-models/small"
+    stt_filler_prompt: str = (
+        "한국어 일상 대화입니다. 실제로 들린 말만 받아쓰며, 들리지 않은 내용은 추가하지 않습니다."
+    )
+
+    # 기존 OpenAI 설정을 유지하며 Gemini는 명시적으로 선택한다.
+    dialogue_provider: Literal["ollama", "gemini", "openai"] = "openai"
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "exaone3.5:2.4b"
+    # 초과 시 템플릿 질문으로 즉시 폴백하므로 상한일 뿐 평균 지연이 아니다.
+    #
+    # 7.0s는 '단독 호출' 실측(질문 p95 5.3s·리액션 p95 3.6s)으로 잡은 값이라 실제 UX와
+    # 어긋났다. sessions.py는 턴마다 리액션+질문을 동시에 던지는데, CPU 추론이라 두 요청이
+    # 연산을 나눠 써 벽시계가 단독 max가 아니라 순차 합(p95 8.6s)에 가깝다. 그 결과
+    # 2026-08-01 맥북(i7-8750H) 실측에서 병렬 턴의 54~81%가 7.0s 천장에 정확히 걸려
+    # (폴백 턴은 예외 없이 7.02~7.04s) 다 만들어 놓은 문장을 버리고 있었다.
+    # 9.0s로 올리면 폴백이 절반 이하로 떨어진다. 순서를 뒤집어 두 번 측정해 확인했다:
+    #   7s → 81% / 81%   ·   9s → 31% / 44%   (대가: 평균 대기 6.9~7.0s → 7.8~8.4s)
+    # 남은 폴백은 사실상 전부 질문 호출이다(리액션 0~1건) — 더 줄이려면 다음 레버는
+    # 질문 num_predict(80) 축소다. scripts/bench_num_predict_sweep.py가 값별로 비교한다.
+    # ⚠️ 12.0s는 오히려 75%로 악화됐다(단조성 붕괴). 열 스로틀링은 아니었고
+    #    (CPU_Speed_Limit 100) 원인 미해명이라, 9s의 31~44%는 범위로만 읽는다.
+    #    전시 PC에서는 scripts/bench_dialogue_latency로 반드시 재실측한다.
+    ollama_timeout_sec: float = 9.0
+    # 전시 중 세션 간격이 벌어져도 모델이 RAM에서 내려가지 않게 (기본 5m → 콜드 로드 방지)
+    ollama_keep_alive: str = "2h"
+    # OpenAI 키는 서버 환경변수에서만 읽는다. 프론트 코드·API 응답·로그에 노출하지 않는다.
+    openai_api_key: SecretStr = SecretStr("")
+    openai_model: str = "gpt-4o"
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_timeout_sec: float = 15.0
+    # Gemini — 키는 서버 .env만. base_url은 공식 엔드포인트 고정(임의 URL 주입 방지).
+    gemini_api_key: SecretStr = SecretStr("")
+    gemini_api_backend: Literal["developer", "vertex"] = "developer"
+    gemini_vertex_project: str = ""
+    gemini_model: str = "gemini-3.5-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com"
+    gemini_timeout_sec: float = 20.0
+    # ElevenLabs 스트리밍 음성 설정.
+    elevenlabs_api_key: SecretStr = SecretStr("")
+    elevenlabs_voice_id: str = ""
+    elevenlabs_model: str = "eleven_v4_turbo"
+    # Savings scene for the current demonstration; 0 restores random scenes.
+    workplace_fixed_scene_order: int = 0
+    elevenlabs_timeout_sec: float = 20.0
+    # 서버 음성 제공자는 ElevenLabs만 사용한다.
+    tts_provider: Literal["elevenlabs"] = "elevenlabs"
+
+    # 의미 매칭 (마스터리 ②): Response-Fit 데이터로 fine-tuning한 로컬 E5로
+    # 패러프레이즈 커버리지를 인식한다. 모델 파일이 없으면 키워드 매칭만 사용한다.
+    semantic_match_enabled: bool = True
+    semantic_provider: Literal["local_e5"] = "local_e5"
+    # 비활성화된 Ollama 경로의 회귀 테스트·긴급 롤백용 식별자. 제품 설정에서는
+    # semantic_provider가 local_e5만 허용하므로 이 모델을 실행하지 않는다.
+    ollama_embed_model: str = "bge-m3"
+    local_e5_model_dir: Path = Path("./models/response_e5_v1/final")
+    # 2026-07 Colab response_threshold_test 평가의 최적 F1 기준값. 새 데이터로 재보정할 것.
+    local_e5_threshold: float = 0.74
+
+    # ---- B2B 온보딩 확장 ----
+    # NFC 리더 브리지 (S-B2B-NFC) — ACR122U PC/SC 폴링. pyscard 미설치·리더 미연결이면
+    # 자동 휴면하고 수동 폴백(simulate-tap·수동 카드 선택)만 동작한다.
+    nfc_bridge_enabled: bool = True
+    # 리더 연결 순서(인덱스)로 역할 배정 — 1대 운영 시 "mirror"만
+    nfc_reader_roles: str = "mirror,kiosk"
+    # 영수증 QR 클레임 링크 베이스 (S-B2B-CLAIM) — 웹앱(poc/frontend)의 클레임 화면.
+    # QR에는 claim_token만 실린다 (세션 열람권인 access_token은 싣지 않는다).
+    claim_base_url: str = "http://localhost:5173/claim"
+    # LLM judge (S-B2B-JUDGE): Response-Fit 한정 루브릭 CoT 채점 + self-consistency
+    # (n회 채점 중앙값). 0이면 비활성. Ollama 미가동·실패 시 결정적 파이프라인 점수만
+    # 사용한다 (폴백 계층 원칙 — judge는 가산 레이어지 의존점이 아니다).
+    #
+    # 2026-08-01: 기본값 3 → 0. judge는 temperature 0.7 표본의 중앙값을 최종 Response
+    # 점수에 judge_blend_weight만큼 섞는데(analysis.py), 사람 평정자와의 일치도
+    # (Krippendorff α) 실측이 아직 0건이다. 검증되지 않은 생성 점수가 출고 값을
+    # 흔들면 "같은 답변 3회 = 같은 점수"라는 결정성 보증이 깨진다 — 골든 하네스의
+    # 결정성 테스트(test_golden_responses.py)는 use_semantic=False 결정적 경로만
+    # 검증하므로 이 혼합을 덮지 못한다. α 실측 후 되돌린다.
+    #
+    # 2026-08-01 적대 케이스 10건 실측(docs/studies/gaming-gap-result-2026-08-01.md)이
+    # 두 번째 근거를 더했다: 0.3 선형 혼합은 정확도 면에서도 명백한 이득이 아니다
+    # (5건 개선·3건 악화, 대조군 대비 분리도 17.8→19.6). 두 레이어가 서로 다른 것에
+    # 속하기 때문이다 — 결정적 레이어는 키워드 나열에, judge는 유창한 공백에 속는다.
+    # 따라서 문제는 judge가 아니라 '선형 평균'이라는 결합 규칙이다. 되돌릴 때는
+    # 가중치만 만지지 말고 보수적 결합(낮은 쪽 채택·감점 기반)으로 바꾼 뒤 재측정할 것.
+    # 켜려면 MIRROR_TING_JUDGE_SAMPLES=3.
+    judge_samples: int = 0
+    judge_timeout_sec: float = 20.0
+    # 최종 Response 점수 = (1-w)×결정적 + w×judge 중앙값 — 보수적 혼합(검증 전)
+    judge_blend_weight: float = 0.3
+
+    # 떨림(jitter/shimmer) 감점 임계 — 합성 신호로 보정된 기본값. 감점 자체는
+    # 골든 검증된 결함 수정(떨리는 발화가 억양 보상을 받던 문제)이므로 유지하되,
+    # 전시 PC 마이크 보정(demo-checklist §2.5)에서 오탐이 보이면 코드 수정 없이
+    # backend/.env의 MIRROR_TING_TREMOR_*로 상향한다.
+    tremor_jitter_floor: float = 6.0   # % — 이하는 정상 변동
+    tremor_shimmer_floor: float = 8.0  # %
+    tremor_penalty_cap: float = 18.0
+
+    model_config = {"env_prefix": "MIRROR_TING_", "env_file": ".env", "extra": "ignore"}
+
+
+settings = Settings()
+settings.media_dir.mkdir(parents=True, exist_ok=True)

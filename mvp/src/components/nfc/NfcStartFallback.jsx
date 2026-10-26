@@ -1,0 +1,30 @@
+import { ChevronRight } from "reicon-react/icons/ChevronRight";
+import { JOB_ROLES } from "../../lib/nfc";
+
+/** 미러 NFC 수동 폴백 (E-20 / S-B2B-106) — resolve 404(미등록·폐기 카드) 때 홈 위에 뜬다.
+ *  카드 미인식이 체험 중단이 되면 안 된다: 직무 선택으로 같은 흐름(동의 → 연습)을 잇는다.
+ */
+export function NfcStartFallback({ onPick, onClose, serviceMode = "workplace", cardConfirmed = false }) {
+  const roles = JOB_ROLES.filter(role => serviceMode === "workplace" && role.id === "office_admin");
+  return (
+    <div className="nfc-fallback-overlay" role="dialog" aria-label={cardConfirmed ? "사원증 확인 — 체험 역할 선택" : "카드 미인식 — 직무 선택으로 시작"}>
+      <div
+        className="nfc-fallback-card"
+      >
+        <img className="nfc-fallback-mark" src="/icons/mirror-ting-mark-slim.png" alt="" aria-hidden="true" />
+        <h2>{cardConfirmed ? "사원증을 확인했어요" : "카드가 인식되지 않아요"}</h2>
+        <p>{cardConfirmed ? "체험 역할을 선택하면 이 사원증에 결과가 연결돼요." : "직무를 선택해 시작하세요. 발급 카드 없이도 연습할 수 있어요."}</p>
+        <div className="nfc-fallback-roles">
+          {roles.map((role) => (
+            <button key={role.id} type="button" onClick={() => onPick(role)}>
+              <strong>{role.label}</strong>
+              <small>{role.text}</small>
+              <ChevronRight size={17} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+        <button type="button" className="nfc-fallback-close" onClick={onClose}>닫기 — 카드를 다시 태그해 볼게요</button>
+      </div>
+    </div>
+  );
+}

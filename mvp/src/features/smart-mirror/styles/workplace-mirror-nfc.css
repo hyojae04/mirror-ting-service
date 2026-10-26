@@ -1,0 +1,39 @@
+body:has(.mirror-deployment) { margin: 0; background: #000; }
+.mirror-deployment .mirror-card-notice { position: fixed; z-index: 100; bottom: 2.5dvh; left: 50%; transform: translateX(-50%); box-sizing: border-box; width: min(90vw, 680px); padding: 18px 24px; border: 1px solid #ffffff42; border-radius: 18px; background: #10151ff2; color: #f5f7fc; font: 500 clamp(16px, 2dvh, 26px)/1.6 'Noto Sans KR', sans-serif; box-shadow: 0 8px 36px #0008; }
+.mirror-card-notice p { margin: 0; }
+.mirror-card-notice p + p { margin-top: 8px; color: #c6cdd8; font-size: .85em; }
+.mirror-card-notice button { margin-top: 10px; padding: 10px 18px; border: 1px solid #ffffff70; border-radius: 10px; background: #ffffff18; color: inherit; font: inherit; cursor: pointer; }
+.app-shell.mirror-deployment { width: 100%; max-width: none; margin: 0; padding: 0; background: #000; color: #f5f7fc; min-height: 100dvh; }
+.mirror-deployment .screen-frame { width: 100%; max-width: none; margin: 0; padding: 0; }
+
+.mirror-nfc-waiting {
+  --u: min(1dvh, 1.77778vw);
+  --ink: #f5f7fc;
+  --muted: #c6cdd8;
+  --surface: #070b1205;
+  --divider: #ffffff24;
+  box-sizing: border-box;
+  width: min(100%, 56.25dvh);
+  min-height: 100dvh;
+  margin: auto;
+  padding: calc(3.3 * var(--u)) calc(3.6 * var(--u));
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  color: var(--ink);
+  font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', Arial, sans-serif;
+}
+.mirror-nfc-waiting * { box-sizing: border-box; }
+.mirror-nfc-content { width: 100%; margin-block: auto; padding-block: calc(2 * var(--u)) calc(5 * var(--u)); }
+.mirror-nfc-symbol { display: block; width: calc(27.72 * var(--u)); margin: 0 auto calc(7 * var(--u)); }
+.mirror-nfc-symbol img { display: block; width: 100%; height: auto; }
+.mirror-nfc-waiting .overview-card-content { gap: calc(1.8 * var(--u)); padding: calc(3 * var(--u)); }
+.mirror-nfc-waiting h1 { margin: 0; font-size: max(1.5rem, calc(2.7 * var(--u))); line-height: 1.45; letter-spacing: -.04em; word-break: keep-all; }
+.mirror-nfc-instruction { margin: 0; font-size: max(1rem, calc(1.6 * var(--u))); line-height: 1.75; color: var(--muted); word-break: keep-all; }
+.mirror-nfc-next { margin: 0; padding-top: calc(1.8 * var(--u)); border-top: 1px solid var(--divider); font-size: max(.875rem, calc(1.25 * var(--u))); line-height: 1.7; color: var(--muted); word-break: keep-all; }
+
+
+button.mirror-nfc-symbol { padding: 0; border: 0; background: transparent; cursor: pointer; }
+button.mirror-nfc-symbol:focus-visible { outline: 2px solid #f5f7fc; outline-offset: 8px; border-radius: 24px; }
+.mirror-start-retry { padding: 14px 20px; border-radius: 12px; background: #fff; color: #111; border: 0; cursor: pointer; font-size: 1rem; }
+.mirror-media-notice { position: fixed; inset: auto 16px 12px; margin: 0; padding: 10px 16px; color: #fff; background: #171717; border-radius: 12px; font-size: .95rem; text-align: center; z-index: 20; }
