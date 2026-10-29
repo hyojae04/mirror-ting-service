@@ -47,6 +47,7 @@ from app.schemas import (
 )
 from app.services.analysis import run_analysis
 from app.services import voice_analysis
+from app.services.profanity import reject_profanity
 from app.ai import voice_measurement
 from app.api.voice import parse_input
 from typing import Annotated
@@ -526,6 +527,7 @@ def observe_turn(
     turn = db.get(Turn, turn_id)
     if session.status != SessionStatus.in_progress or turn is None or turn.session_id != session_id or turn.answered_at is not None:
         raise HTTPException(status_code=409, detail="현재 답변 중인 턴이 아닙니다")
+    reject_profanity(body.text)
     result = judgments.evaluate(turn_id, text=body.text,
         nonverbal=body.nonverbal.model_dump(exclude_unset=True) if body.nonverbal else None,
         duration_ms=body.duration_ms, voice_text=body.stt_source == "webspeech" and not voice_analysis.enabled(session))
@@ -587,6 +589,7 @@ def submit_response(
     # 텍스트가 비어 있으면 오디오 업로드 시 서버 STT가 채운 텍스트를 유지
     incoming = body.text.strip()
     candidate = incoming or turn.response_text or ''
+    reject_profanity(candidate)
     if (interaction.state(session).get('mode') == CONTINUOUS_MODE
             and (candidate.casefold() in {'null', 'undefined'}
                  or response_judgment.transcript_status(candidate) == 'uncertain')):

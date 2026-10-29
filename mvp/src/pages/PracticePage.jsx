@@ -27,6 +27,7 @@ import { isWorkplaceSession, workplaceBriefing } from "../lib/workplaceTrack";
 import { pickWorkplaceEmotion } from "../lib/workplaceEmotion";
 import { practiceInputStatus } from "../lib/practiceInputStatus";
 import { audioDiagnostic } from "../lib/audioDiagnostics";
+import { containsProfanity, PROFANITY_MESSAGE } from "../lib/profanity";
 import { playRecordingReadySound, RECORDING_READY_SOUND_MS } from "../lib/recordingReadySound";
 
 function formatClock(totalSeconds) {
@@ -55,6 +56,7 @@ export function PracticePage({ onPrev, onFinish, session, scenario, aiHealth, tu
   const [draft, setDraft] = useState("");
   useLayoutEffect(() => { setDraft(""); }, [session?.id, turn?.id]);
   const [captureError, setCaptureError] = useState("");
+  const [inputError, setInputError] = useState("");
   const [audioRecording, setAudioRecording] = useState(false);
   const [recordingAttempt, setRecordingAttempt] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -328,6 +330,7 @@ export function PracticePage({ onPrev, onFinish, session, scenario, aiHealth, tu
     { label: "마이크", detail: micSilent ? "신호 없음" : micDeviceLabel || "입력", title: micDeviceLabel, ready: hasMicrophone && !micSilent },
   ];
   const inputValue = interim ? `${draft} ${interim}`.trim() : draft;
+  useEffect(() => { setInputError(""); }, [inputValue]);
   useEffect(() => {
     if (inputValue.trim()) onVisitorActivity();
   }, [inputValue, onVisitorActivity]);
@@ -492,6 +495,7 @@ export function PracticePage({ onPrev, onFinish, session, scenario, aiHealth, tu
   const submitDraft = async () => {
     const text = inputValue.trim();
     if (!text || busy || paused || aiSpeaking || aiSpeechActiveRef.current || !turn || entryOverlayOpen || submittingRef.current) return;
+    if (containsProfanity(text)) { setInputError(PROFANITY_MESSAGE); return; }
     submittingRef.current = true;
     try {
       clearAutoSubmit();
@@ -550,7 +554,7 @@ export function PracticePage({ onPrev, onFinish, session, scenario, aiHealth, tu
       {!entryOverlayOpen && inputStatus.title === "직접 입력" && <p className="simulation-dialogue-status" role="status">{recognitionError === "unsupported" ? "Chrome에서 음성 인식을 실행해 주세요." : <span role="button" tabIndex={0} onClick={retryBrowserRecognition} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); retryBrowserRecognition(); } }}>음성 인식을 다시 실행해 주세요.</span>}</p>}
       {liveTip && <p className="simulation-dialogue-status" role="status"><strong>대화 팁 · </strong>{liveTip.message}</p>}
 
-      {(error || captureError || mediaError) && <p className="simulation-dialogue-status" role="alert">{error || captureError || mediaError}</p>}
+      {(error || inputError || captureError || mediaError) && <p className="simulation-dialogue-status" role="alert">{error || inputError || captureError || mediaError}</p>}
     </WorkplaceMirrorSceneSimulation>
     {voice.open && <MicrophoneCheck mirror automatic session={session} stream={mediaStream} onRequestMedia={onRequestMedia} onReady={voice.onReady} onTextOnly={voice.onTextOnly} />}
   </>;
@@ -633,7 +637,7 @@ export function PracticePage({ onPrev, onFinish, session, scenario, aiHealth, tu
               <button type="button" className="control-send" onClick={submitDraft} disabled={busy || paused || entryOverlayOpen || !inputValue.trim() || !turn}><span>전송</span><ChevronRight size={16} aria-hidden="true" /></button>
               <button type="button" className="practice-utility" disabled={busy || !inputValue} onClick={() => { clearAutoSubmit(); setDraft(""); setInterim(""); setCaptureError(""); }}><Refresh3 size={16} /> 입력 지우기</button>
             </div>
-            {(error || captureError) && <p className="practice-error" role="alert">{error || captureError}</p>}
+            {(error || inputError || captureError) && <p className="practice-error" role="alert">{error || inputError || captureError}</p>}
           </section>
           <details className="practice-disclosure">
             <summary>분석 도구 연결 상태</summary>

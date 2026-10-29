@@ -86,7 +86,7 @@ function PromptComposer({ mode, prompt, onPrompt, onNext, onModePick, turns, onT
             else setNotice("새로운 연습 화면을 준비하고 있어요.");
           }}>
             <label className="screen-reader-note" htmlFor={id}>연습하고 싶은 상황</label>
-            <textarea ref={inputRef} id={id} value={prompt} onChange={event => { onPrompt(event.target.value); setNotice(""); }} rows={2} placeholder={mode.id === "interview" ? "예: 신입 개발자 면접에서 프로젝트 경험을 설명하고 추가 질문에 답하고 싶어요." : "예: 팀장에게 일정이 늦어진 이유를 설명하고 먼저 할 일을 정하고 싶어요."} />
+            <textarea ref={inputRef} id={id} value={prompt} onChange={event => { onPrompt(event.target.value); setNotice(""); }} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); if (!event.repeat && prompt.trim()) event.currentTarget.form.requestSubmit(); } }} rows={2} placeholder={mode.id === "interview" ? "예: 신입 개발자 면접에서 프로젝트 경험을 설명하고 추가 질문에 답하고 싶어요." : "예: 팀장에게 일정이 늦어진 이유를 설명하고 먼저 할 일을 정하고 싶어요."} />
             <div className="prompt-home-toolbar"><PromptDropdown options={turnOptions} value={turns} onChange={onTurns} label="연습 턴 수" id={`${id}-turns`} /><PromptDropdown options={serviceModes} value={mode.id} onChange={onModePick} label="연습 종류" id={id} /><button type="submit" aria-label={onNext ? "입력한 상황으로 연습 준비하기" : "입력한 상황 확인하기"}><ArrowUp size={18} aria-hidden="true" /></button></div>
             {notice && <p className="prompt-home-description" role="status">{notice}</p>}
           </form>

@@ -1,6 +1,25 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { simulationChatRequest } from './simulationChatApi.js';
+import { PROFANITY_MESSAGE } from './profanity.js';
+
+test('profanity never reaches fetch, including prompt, settings and voice transcripts', async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => { assert.fail('blocked input must not call the server'); };
+    for (const payload of [{ prompt: 'ㅈ까' }, { draft: { additional_notes: '시.발' } }, { messages: [{ role: 'user', content: 'ㅅㅂ' }] }]) {
+      await assert.rejects(simulationChatRequest('reply', payload), { message: PROFANITY_MESSAGE });
+    }
+  } finally { globalThis.fetch = original; }
+});
+
+test('server profanity rejection preserves the specific warning', async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => Response.json({ detail: { code: 'profanity', message: PROFANITY_MESSAGE } }, { status: 422 });
+    await assert.rejects(simulationChatRequest('reply', {}), { message: PROFANITY_MESSAGE });
+  } finally { globalThis.fetch = original; }
+});
 
 test('preparation sends user settings to the backend and returns structured data', async () => {
   const original = globalThis.fetch;

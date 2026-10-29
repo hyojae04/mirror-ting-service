@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "reicon-react/icons/ArrowRight";
 import { ChevronDown } from "reicon-react/icons/ChevronDown";
 import { Menu4 } from "reicon-react/icons/Menu4";
@@ -14,8 +16,25 @@ const mobileIconByTarget = {
   result: "report",
 };
 
-export function TopNav({ active, scenarioTitle, menuOpen, onMenuOpen, onNavigate, scenarios = [], onScenarioSelect, practiceMode = false, account, onLogout }) {
+export function TopNav({ active, scenarioTitle, menuOpen, onMenuOpen, onNavigate, scenarios = [], onScenarioSelect, practiceMode = false }) {
   const [scenarioOpen, setScenarioOpen] = useState(false);
+  const [authNotice, setAuthNotice] = useState(null);
+  const authNoticeId = useRef(0);
+  const authTriggerRef = useRef(null);
+  const reducedMotion = useReducedMotion();
+  const showAuthNotice = (label, event) => {
+    authTriggerRef.current = event.currentTarget;
+    setAuthNotice({ label, id: ++authNoticeId.current });
+  };
+  const closeAuthNotice = () => { setAuthNotice(null); authTriggerRef.current?.focus(); };
+
+  useEffect(() => {
+    if (!authNotice) return undefined;
+    const timer = window.setTimeout(() => setAuthNotice(null), 4000);
+    const escape = event => { if (event.key === "Escape") setAuthNotice(null); };
+    window.addEventListener("keydown", escape);
+    return () => { window.clearTimeout(timer); window.removeEventListener("keydown", escape); };
+  }, [authNotice]);
 
   useEffect(() => {
     const handleOutsideClick = () => {
@@ -52,9 +71,15 @@ export function TopNav({ active, scenarioTitle, menuOpen, onMenuOpen, onNavigate
             {scenarioOpen && scenarios.length > 0 && <div className="nav-dropdown scenario-dropdown glass-panel" onClick={(event) => event.stopPropagation()}><h3>시나리오 전환</h3><ul>{scenarios.map((scenario) => <li key={scenario.slug} className={scenario.title === scenarioTitle ? "active" : ""}><button type="button" onClick={() => { onScenarioSelect(scenario.slug); setScenarioOpen(false); }}>{scenario.title}</button></li>)}</ul></div>}
           </div>
         )}
-        {account ? <><span className="nav-account-name">{account.name || account.email}</span><button className="nav-auth-button nav-auth-login" type="button" onClick={onLogout}>로그아웃</button></> : <><button className="nav-auth-button nav-auth-login" type="button" onClick={() => onNavigate("login")}>로그인</button><button className="nav-auth-button nav-auth-signup" type="button" onClick={() => onNavigate("signup")}>회원가입</button></>}
+        <button className="nav-auth-button nav-auth-login" type="button" onClick={event => showAuthNotice("로그인", event)}>로그인</button>
+        <button className="nav-auth-button nav-auth-signup" type="button" onClick={event => showAuthNotice("회원가입", event)}>회원가입</button>
         <button className="mobile-menu-button" type="button" aria-label="메뉴 열기" aria-expanded={menuOpen} onClick={() => onMenuOpen(true)}><Menu4 size={22} /></button>
       </div>
+      {createPortal(<AnimatePresence>{authNotice && <motion.aside className="auth-notice-banner" role="status" aria-live="polite" aria-atomic="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}>
+        <div className="auth-notice-content"><h2>{authNotice.label} 기능은 준비 중이에요</h2><p>아직 구현되지 않았어요. 로그인 없이도 대화 연습을 이용할 수 있어요.</p></div>
+        <button className="auth-notice-action" type="button" onClick={closeAuthNotice}>확인</button>
+        <button className="auth-notice-close" type="button" aria-label="안내 닫기" onClick={closeAuthNotice}><X size={20} aria-hidden="true" /></button>
+      </motion.aside>}</AnimatePresence>, document.body)}
     </header>
   );
 }

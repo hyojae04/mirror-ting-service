@@ -85,8 +85,8 @@ export function HomeFooter({ mode, onNext, onModeSelect }) {
         <div className="home-site-footer__links">
           <nav aria-label="서비스 살펴보기">
             <h2>둘러보기 <span>EXPLORE</span></h2>
-            <button type="button" onClick={() => jump(overview)}>연습 과정 살펴보기</button>
-            <button type="button" onClick={() => jump(preview)}>대화 예시 보기</button>
+            <button type="button" onClick={() => jump(overview)}>서비스 살펴보기</button>
+            <button type="button" onClick={() => jump(preview)}>연습할 상황 보기</button>
             <button type="button" onClick={() => jump(coaching)}>피드백 알아보기</button>
           </nav>
           <nav aria-label="연습하기">

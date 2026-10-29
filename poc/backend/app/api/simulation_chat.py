@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.config import settings
 from app.services.dialogue import DialogueGenerationError, get_dialogue_provider
+from app.services.profanity import reject_profanity
 
 router = APIRouter(prefix="/simulation-chat", tags=["simulation-chat"])
 
@@ -171,6 +172,8 @@ def public_text(text: str) -> str:
 
 @router.post("/prepare")
 def prepare(body: PrepareIn):
+    reject_profanity(body.prompt, *(message.content for message in body.messages if message.role == "user"),
+                     *(value for value in body.draft.model_dump().values() if isinstance(value, str)))
     latest = next((message.content for message in reversed(body.messages) if message.role == "user"), body.prompt)
     if body.answer_field == "additional_notes" and not body.draft.missing():
         draft = body.draft.model_copy(deep=True)
@@ -247,6 +250,8 @@ def prepare(body: PrepareIn):
 
 @router.post("/reply")
 def reply(body: SimulationIn):
+    reject_profanity(body.prompt, *(message.content for message in body.messages if message.role == "user"),
+                     *(value for value in body.draft.model_dump().values() if isinstance(value, str)))
     count = sum(message.role == "user" for message in body.messages)
     done = count >= body.draft.turns
     try:

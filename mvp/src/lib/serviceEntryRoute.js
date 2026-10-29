@@ -60,7 +60,7 @@ export function isChromelessView(view) {
   return CHROMELESS_VIEWS.has(view);
 }
 
-// The web practice flow is being replaced; mirror deployments keep their existing flow.
+// Authentication is temporarily disabled for the public web practice flow.
 export function currentScreenDestination(target, mirror) {
-  return !mirror && ["role", "scenario", "difficulty", "preview", "practice", "result", "feedback", "compare", "share"].includes(target) ? "home" : target;
+  return !mirror && ["login", "signup", "role", "scenario", "difficulty", "preview", "practice", "result", "feedback", "compare", "share"].includes(target) ? "home" : target;
 }
