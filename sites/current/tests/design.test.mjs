@@ -1,0 +1,16 @@
+import { before, after, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { createServer } from 'vite';
+let server, design;
+before(async()=>{server=await createServer({configFile:false,server:{middlewareMode:true,hmr:false,watch:{useFsEvents:false,usePolling:true}},appType:'custom'}); design=await server.ssrLoadModule('/lib/design.ts');});
+after(async()=>{await server.close();});
+const base=()=>({service_mode:'interview',prompt:'개발자 면접을 준비해요',messages:[{role:'user',content:'개발자 면접을 준비해요'}],draft:{turns:5},consent:true});
+const complete=()=>({job_role:'개발자',situation:'신입 면접',context:'첫 면접',goal:'경험 설명',turns:5,target:'면접관',difficulty:'basic',personality:'차분함',persona:'개발팀 면접관',additional_notes:'',additional_notes_confirmed:false});
+const response=value=>async()=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(value)}}]});
+test('no consent and invalid turns cannot reach OpenAI',async()=>{for(const body of [{...base(),consent:false},{...base(),draft:{turns:21}}]) await assert.rejects(()=>design.prepareDesign(body,'secret',()=>assert.fail()),e=>e.status===422);});
+test('profanity blocked before network, including obfuscated input',async()=>{for(const content of ['ㅈ까','시.발','ㅅㅂ']) await assert.rejects(()=>design.prepareDesign({...base(),messages:[{role:'user',content}]},'secret',()=>assert.fail()),e=>e.status===422);});
+test('missing key gives a setup message and never calls OpenAI',async()=>{await assert.rejects(()=>design.prepareDesign(base(),undefined,()=>assert.fail()),e=>e.status===503&&e.message.includes('AI 연결 설정'));});
+test('confirmed fields survive omissions and missing question is rejected',async()=>{const result=await design.prepareDesign(base(),'secret',response({message:'직무를 알려주세요.',draft:{},question:{field:'job_role',title:'지원 직무는 무엇인가요?',choices:['개발자','마케터']}}));assert.equal(result.draft.turns,5);assert.equal(result.ready,false); await assert.rejects(()=>design.prepareDesign(base(),'secret',response({message:'완료',draft:{},question:null})),e=>e.status===502);});
+test('all required fields still require optional notes confirmation',async()=>{const result=await design.prepareDesign(base(),'secret',response({message:'준비했어요',draft:complete(),question:null}));assert.equal(result.ready,false);assert.equal(result.question.field,'additional_notes');assert.equal(result.draft.additional_notes_confirmed,false);});
+test('notes confirmation ends design without another model call',async()=>{const result=await design.prepareDesign({...base(),draft:complete(),answer_field:'additional_notes',messages:[{role:'user',content:'추가 사항 없어요'}]},'secret',()=>assert.fail());assert.equal(result.ready,true);assert.equal(result.question,null);});
+test('bad model output and upstream failure preserve a retryable error',async()=>{for(const call of [response({message:'oops'}),async()=>new Response('',{status:401})])await assert.rejects(()=>design.prepareDesign(base(),'secret',call),e=>[502,503].includes(e.status)&&!e.message.includes('secret'));});

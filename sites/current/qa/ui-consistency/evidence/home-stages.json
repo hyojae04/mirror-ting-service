@@ -1,0 +1,434 @@
+[
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".intro-story-track",
+    "index": 0,
+    "content": [
+      {
+        "text": "머릿속이 하얘지는면접 질문도.",
+        "top": 414.53125,
+        "bottom": 537.71875,
+        "left": 480,
+        "right": 960,
+        "inside": true
+      },
+      {
+        "text": "나의 경험을 나의 말로 전할 수 있도록, 먼저 연습해요.",
+        "top": 559.71875,
+        "bottom": 587.46875,
+        "left": 555,
+        "right": 885,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".intro-story-track",
+    "index": 1,
+    "content": [
+      {
+        "text": "무슨 말을 할지 망설이는첫 회식도.",
+        "top": 400.65625,
+        "bottom": 523.84375,
+        "left": 480,
+        "right": 960,
+        "inside": true
+      },
+      {
+        "text": "처음 만난 동료와 자연스럽게 이야기할 수 있도록, 먼저 연습해요.",
+        "top": 545.84375,
+        "bottom": 601.34375,
+        "left": 555,
+        "right": 885,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".intro-story-track",
+    "index": 2,
+    "content": [
+      {
+        "text": "내 생각을 또렷하게전하고 싶은 미팅도.",
+        "top": 400.65625,
+        "bottom": 523.84375,
+        "left": 480,
+        "right": 960,
+        "inside": true
+      },
+      {
+        "text": "처음 꺼내는 제안부터 함께 의견을 맞추는 순간까지, 먼저 연습해요.",
+        "top": 545.84375,
+        "bottom": 601.34375,
+        "left": 555,
+        "right": 885,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".intro-story-track",
+    "index": 3,
+    "content": [
+      {
+        "text": "중요한 대화 전에,미러팅과 먼저 연습하세요.",
+        "top": 361.65625,
+        "bottom": 484.84375,
+        "left": 480,
+        "right": 960,
+        "inside": true
+      },
+      {
+        "text": "면접부터 회식, 미팅까지. 한 번의 연습이 다음 대화를 바꿔요.",
+        "top": 506.84375,
+        "bottom": 562.34375,
+        "left": 555,
+        "right": 885,
+        "inside": true
+      },
+      {
+        "text": "내 상황으로 연습하기 ",
+        "top": 592.34375,
+        "bottom": 640.34375,
+        "left": 620.765625,
+        "right": 819.21875,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".fit-scroll",
+    "index": 0,
+    "content": [
+      {
+        "text": "대화의 맥락에 맞는말과 태도를 살펴봐요.",
+        "top": 409.3125,
+        "bottom": 532.03125,
+        "left": 509.171875,
+        "right": 930.8125,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".fit-scroll",
+    "index": 1,
+    "content": [
+      {
+        "text": "맥락에 맞게 답했는지 확인해요.",
+        "top": 458.46875,
+        "bottom": 510.46875,
+        "left": 649.890625,
+        "right": 1310,
+        "inside": true
+      },
+      {
+        "text": "맥락과 목표에 맞는 답인지 봐요.",
+        "top": 530.46875,
+        "bottom": 562.859375,
+        "left": 649.890625,
+        "right": 1310,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".fit-scroll",
+    "index": 2,
+    "content": [
+      {
+        "text": "상황에 맞는 목소리인지 확인해요.",
+        "top": 458.46875,
+        "bottom": 510.46875,
+        "left": 649.890625,
+        "right": 1310,
+        "inside": true
+      },
+      {
+        "text": "장면에 맞는 속도와 음량을 봐요.",
+        "top": 530.46875,
+        "bottom": 562.859375,
+        "left": 649.890625,
+        "right": 1310,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".fit-scroll",
+    "index": 3,
+    "content": [
+      {
+        "text": "장면에 맞는 표정인지 확인해요.",
+        "top": 458.46875,
+        "bottom": 510.46875,
+        "left": 649.890625,
+        "right": 1310,
+        "inside": true
+      },
+      {
+        "text": "표정의 변화를 대화와 함께 봐요.",
+        "top": 530.46875,
+        "bottom": 562.859375,
+        "left": 649.890625,
+        "right": 1310,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "height": 900,
+    "selector": ".fit-scroll",
+    "index": 4,
+    "content": [
+      {
+        "text": "상황에 맞는 자세인지 확인해요.",
+        "top": 458.46875,
+        "bottom": 510.46875,
+        "left": 649.890625,
+        "right": 1310,
+        "inside": true
+      },
+      {
+        "text": "몸의 움직임을 상황과 함께 봐요.",
+        "top": 530.46875,
+        "bottom": 562.859375,
+        "left": 649.890625,
+        "right": 1310,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".intro-story-track",
+    "index": 0,
+    "content": [
+      {
+        "text": "머릿속이 하얘지는면접 질문도.",
+        "top": 171.4375,
+        "bottom": 241.4375,
+        "left": 24,
+        "right": 296,
+        "inside": true
+      },
+      {
+        "text": "나의 경험을 나의 말로 전할 수 있도록, 먼저 연습해요.",
+        "top": 255.4375,
+        "bottom": 303.53125,
+        "left": 24,
+        "right": 296,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".intro-story-track",
+    "index": 1,
+    "content": [
+      {
+        "text": "무슨 말을 할지 망설이는첫 회식도.",
+        "top": 162.90625,
+        "bottom": 232.90625,
+        "left": 24,
+        "right": 296,
+        "inside": true
+      },
+      {
+        "text": "처음 만난 동료와 자연스럽게 이야기할 수 있도록, 먼저 연습해요.",
+        "top": 246.90625,
+        "bottom": 295,
+        "left": 24,
+        "right": 296,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".intro-story-track",
+    "index": 2,
+    "content": [
+      {
+        "text": "내 생각을 또렷하게전하고 싶은 미팅도.",
+        "top": 154.390625,
+        "bottom": 224.390625,
+        "left": 24,
+        "right": 296,
+        "inside": true
+      },
+      {
+        "text": "처음 꺼내는 제안부터 함께 의견을 맞추는 순간까지, 먼저 연습해요.",
+        "top": 238.390625,
+        "bottom": 286.484375,
+        "left": 24,
+        "right": 296,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".intro-story-track",
+    "index": 3,
+    "content": [
+      {
+        "text": "중요한 대화 전에,미러팅과 먼저 연습하세요.",
+        "top": 226.953125,
+        "bottom": 296.953125,
+        "left": 24,
+        "right": 296,
+        "inside": true
+      },
+      {
+        "text": "면접부터 회식, 미팅까지. 한 번의 연습이 다음 대화를 바꿔요.",
+        "top": 310.953125,
+        "bottom": 359.046875,
+        "left": 24,
+        "right": 296,
+        "inside": true
+      },
+      {
+        "text": "내 상황으로 연습하기 ",
+        "top": 383.046875,
+        "bottom": 431.046875,
+        "left": 60.765625,
+        "right": 259.21875,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".fit-scroll",
+    "index": 0,
+    "content": [
+      {
+        "text": "대화의 맥락에 맞는말과 태도를 살펴봐요.",
+        "top": 288.8125,
+        "bottom": 352.53125,
+        "left": 50.53125,
+        "right": 269.46875,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".fit-scroll",
+    "index": 1,
+    "content": [
+      {
+        "text": "맥락에 맞게 답했는지 확인해요.",
+        "top": 379.203125,
+        "bottom": 441.578125,
+        "left": 20,
+        "right": 300,
+        "inside": true
+      },
+      {
+        "text": "맥락과 목표에 맞는 답인지 봐요.",
+        "top": 457.578125,
+        "bottom": 489.96875,
+        "left": 20,
+        "right": 300,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".fit-scroll",
+    "index": 2,
+    "content": [
+      {
+        "text": "상황에 맞는 목소리인지 확인해요.",
+        "top": 379.203125,
+        "bottom": 441.578125,
+        "left": 20,
+        "right": 300,
+        "inside": true
+      },
+      {
+        "text": "장면에 맞는 속도와 음량을 봐요.",
+        "top": 457.578125,
+        "bottom": 489.96875,
+        "left": 20,
+        "right": 300,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".fit-scroll",
+    "index": 3,
+    "content": [
+      {
+        "text": "장면에 맞는 표정인지 확인해요.",
+        "top": 379.203125,
+        "bottom": 441.578125,
+        "left": 20,
+        "right": 300,
+        "inside": true
+      },
+      {
+        "text": "표정의 변화를 대화와 함께 봐요.",
+        "top": 457.578125,
+        "bottom": 489.96875,
+        "left": 20,
+        "right": 300,
+        "inside": true
+      }
+    ]
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "selector": ".fit-scroll",
+    "index": 4,
+    "content": [
+      {
+        "text": "상황에 맞는 자세인지 확인해요.",
+        "top": 379.203125,
+        "bottom": 441.578125,
+        "left": 20,
+        "right": 300,
+        "inside": true
+      },
+      {
+        "text": "몸의 움직임을 상황과 함께 봐요.",
+        "top": 457.578125,
+        "bottom": 489.96875,
+        "left": 20,
+        "right": 300,
+        "inside": true
+      }
+    ]
+  }
+]

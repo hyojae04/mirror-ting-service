@@ -1,0 +1,290 @@
+[
+  {
+    "selector": ".prompt-home-description",
+    "index": 0,
+    "role": "body",
+    "text": "연습할 상황을 적어보세요. AI가 대화 상대가 돼요.",
+    "color": "rgb(71, 71, 71)",
+    "size": 17,
+    "weight": "400",
+    "worstBackground": [
+      240,
+      244,
+      254
+    ],
+    "wcagMinimum": 8.440171169649378,
+    "apcaMinimum": 84.8539433945456
+  },
+  {
+    "selector": ".hero-typing-word",
+    "index": 0,
+    "role": "large",
+    "text": "면접",
+    "color": "rgba(0, 105, 236, 0.86)",
+    "size": 58,
+    "weight": "650",
+    "worstBackground": [
+      250,
+      251,
+      255
+    ],
+    "wcagMinimum": 3.8537218074034256,
+    "apcaMinimum": 64.22649603680412
+  },
+  {
+    "selector": ".intro-story-copy p",
+    "index": 0,
+    "role": "body",
+    "text": "나의 경험을 나의 말로 전할 수 있도록, 먼저 연습해요.",
+    "color": "rgb(199, 213, 232)",
+    "size": 15,
+    "weight": "400",
+    "worstBackground": [
+      14,
+      29,
+      51
+    ],
+    "wcagMinimum": 11.359777899340473,
+    "apcaMinimum": 78.49693006428285
+  },
+  {
+    "selector": ".intro-story-copy p",
+    "index": 1,
+    "role": "body",
+    "text": "처음 만난 동료와 자연스럽게 이야기할 수 있도록, 먼저 연습해요.",
+    "color": "rgb(199, 213, 232)",
+    "size": 15,
+    "weight": "400",
+    "worstBackground": [
+      15,
+      39,
+      72
+    ],
+    "wcagMinimum": 10.050146500370818,
+    "apcaMinimum": 76.83800028111666
+  },
+  {
+    "selector": ".intro-story-copy p",
+    "index": 2,
+    "role": "body",
+    "text": "처음 꺼내는 제안부터 함께 의견을 맞추는 순간까지, 먼저 연습해요.",
+    "color": "rgb(199, 213, 232)",
+    "size": 15,
+    "weight": "400",
+    "worstBackground": [
+      15,
+      36,
+      65
+    ],
+    "wcagMinimum": 10.460664230113112,
+    "apcaMinimum": 77.41103394563214
+  },
+  {
+    "selector": ".intro-story-copy p",
+    "index": 3,
+    "role": "body",
+    "text": "면접부터 회식, 미팅까지. 한 번의 연습이 다음 대화를 바꿔요.",
+    "color": "rgb(199, 213, 232)",
+    "size": 15,
+    "weight": "400",
+    "worstBackground": [
+      14,
+      25,
+      42
+    ],
+    "wcagMinimum": 11.846757354285371,
+    "apcaMinimum": 79.0089877756754
+  },
+  {
+    "selector": ".mode-footer-cta--prompt > div > p",
+    "index": 0,
+    "role": "body",
+    "text": "누구와 어떤 이야기를 나눌지 적으면 AI가 대화 상대가 돼요.",
+    "color": "rgb(71, 71, 71)",
+    "size": 15,
+    "weight": "400",
+    "worstBackground": [
+      251,
+      251,
+      252
+    ],
+    "wcagMinimum": 8.984324326709727,
+    "apcaMinimum": 89.11835033863765
+  },
+  {
+    "selector": ".fit-scroll-copy p",
+    "index": 0,
+    "role": "body",
+    "text": "맥락과 목표에 맞는 답인지 봐요.",
+    "color": "rgb(71, 71, 71)",
+    "size": 18,
+    "weight": "400",
+    "worstBackground": [
+      227,
+      234,
+      246
+    ],
+    "wcagMinimum": 7.683420757769645,
+    "apcaMinimum": 78.70902071220956
+  },
+  {
+    "selector": ".fit-scroll-copy p",
+    "index": 1,
+    "role": "body",
+    "text": "장면에 맞는 속도와 음량을 봐요.",
+    "color": "rgb(71, 71, 71)",
+    "size": 18,
+    "weight": "400",
+    "worstBackground": [
+      237,
+      240,
+      246
+    ],
+    "wcagMinimum": 8.138970701836845,
+    "apcaMinimum": 82.43876378044965
+  },
+  {
+    "selector": ".fit-scroll-copy p",
+    "index": 2,
+    "role": "body",
+    "text": "표정의 변화를 대화와 함께 봐요.",
+    "color": "rgb(71, 71, 71)",
+    "size": 18,
+    "weight": "400",
+    "worstBackground": [
+      227,
+      235,
+      247
+    ],
+    "wcagMinimum": 7.7393984348629346,
+    "apcaMinimum": 79.173075517705
+  },
+  {
+    "selector": ".fit-scroll-copy p",
+    "index": 3,
+    "role": "body",
+    "text": "몸의 움직임을 상황과 함께 봐요.",
+    "color": "rgb(71, 71, 71)",
+    "size": 18,
+    "weight": "400",
+    "worstBackground": [
+      238,
+      241,
+      246
+    ],
+    "wcagMinimum": 8.206489973401172,
+    "apcaMinimum": 82.9834965507732
+  },
+  {
+    "selector": ".home-site-footer__project p",
+    "index": 0,
+    "role": "body",
+    "text": "동양미래대학교인공지능소프트웨어학과",
+    "color": "rgb(71, 71, 71)",
+    "size": 14,
+    "weight": "400",
+    "worstBackground": [
+      245,
+      245,
+      247
+    ],
+    "wcagMinimum": 8.53311018911791,
+    "apcaMinimum": 85.5904066209478
+  },
+  {
+    "selector": ".home-site-footer__project p",
+    "index": 1,
+    "role": "body",
+    "text": "중요한 대화 전에 먼저 연습해요.내 말과 행동을 돌아봐요.",
+    "color": "rgb(71, 71, 71)",
+    "size": 12,
+    "weight": "400",
+    "worstBackground": [
+      245,
+      245,
+      247
+    ],
+    "wcagMinimum": 8.53311018911791,
+    "apcaMinimum": 85.5904066209478
+  },
+  {
+    "selector": ".simulation-message--assistant p",
+    "index": 0,
+    "role": "body",
+    "text": "상황을 확인했어요. 구체적으로 어떤 일이 있었는지 알려주세요.",
+    "color": "rgb(29, 29, 31)",
+    "size": 16,
+    "weight": "400",
+    "worstBackground": [
+      255,
+      255,
+      255
+    ],
+    "wcagMinimum": 16.829972351390765,
+    "apcaMinimum": 103.76796124987872
+  },
+  {
+    "selector": ".simulation-question-card h2",
+    "index": 0,
+    "role": "label",
+    "text": "어떤 직무를 준비하고 있나요?",
+    "color": "rgb(29, 29, 31)",
+    "size": 15,
+    "weight": "500",
+    "worstBackground": [
+      245,
+      245,
+      247
+    ],
+    "wcagMinimum": 15.456757735161771,
+    "apcaMinimum": 97.88638066550773
+  },
+  {
+    "selector": ".simulation-question-card-top",
+    "index": 0,
+    "role": "label",
+    "text": "? 질문필수 설정 1 / 9",
+    "color": "rgb(112, 112, 112)",
+    "size": 12,
+    "weight": "400",
+    "worstBackground": [
+      245,
+      245,
+      247
+    ],
+    "wcagMinimum": 4.548081746700951,
+    "apcaMinimum": 68.42809933535689
+  },
+  {
+    "selector": ".simulation-chat-toolbar > span",
+    "index": 0,
+    "role": "label",
+    "text": "Enter로 전송 · Shift+Enter로 줄바꿈",
+    "color": "rgb(112, 112, 112)",
+    "size": 12,
+    "weight": "400",
+    "worstBackground": [
+      245,
+      245,
+      247
+    ],
+    "wcagMinimum": 4.548081746700951,
+    "apcaMinimum": 68.42809933535689
+  },
+  {
+    "selector": ".editor-context-persona p",
+    "index": 0,
+    "role": "label",
+    "text": "대화를 통해 상황에 맞는 상대를 준비해요.",
+    "color": "rgb(112, 112, 112)",
+    "size": 12,
+    "weight": "400",
+    "worstBackground": [
+      244,
+      248,
+      251
+    ],
+    "wcagMinimum": 4.637703350314611,
+    "apcaMinimum": 69.75262706965376
+  }
+]

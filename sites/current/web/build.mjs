@@ -1,0 +1,11 @@
+import { build } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
+import { cpSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const root=path.dirname(fileURLToPath(import.meta.url));
+const outerPublic=path.resolve(root,'../public');
+mkdirSync(outerPublic,{recursive:true});
+cpSync(path.join(root,'public/icons'),path.join(outerPublic,'icons'),{recursive:true});
+cpSync(path.join(root,'public/manifest.webmanifest'),path.join(outerPublic,'manifest.webmanifest'));
+await build({configFile:false,root,base:'/original/',publicDir:path.join(root,'public'),plugins:[react(),{name:'exclude-simulation-video',resolveId(id){if(/\.(mp4|webm)(\?.*)?$/.test(id))return '\0design-only-video';},load(id){if(id==='\0design-only-video')return 'export default "";';}}],build:{outDir:path.resolve(root,'../public/original'),emptyOutDir:true},define:{'import.meta.env.VITE_STATIC_DEMO':'"false"','import.meta.env.VITE_API_URL':'"/api"'}});

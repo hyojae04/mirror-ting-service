@@ -1,0 +1,133 @@
+{
+  "records": [
+    {
+      "width": 1440,
+      "height": 900,
+      "oneAnswerField": true,
+      "focus": {
+        "style": "solid",
+        "width": "2px",
+        "color": "rgb(0, 102, 204)"
+      },
+      "geometry": {
+        "overflow": false,
+        "viewport": 900,
+        "inputBottom": 900
+      },
+      "captures": 0,
+      "runtimeErrors": []
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "oneAnswerField": true,
+      "focus": {
+        "style": "solid",
+        "width": "2px",
+        "color": "rgb(0, 102, 204)"
+      },
+      "geometry": {
+        "overflow": false,
+        "viewport": 768,
+        "inputBottom": 768
+      },
+      "captures": 0,
+      "runtimeErrors": []
+    },
+    {
+      "width": 768,
+      "height": 900,
+      "oneAnswerField": true,
+      "focus": {
+        "style": "solid",
+        "width": "2px",
+        "color": "rgb(0, 102, 204)"
+      },
+      "geometry": {
+        "overflow": false,
+        "viewport": 900,
+        "inputBottom": 900
+      },
+      "captures": 0,
+      "runtimeErrors": []
+    },
+    {
+      "width": 720,
+      "height": 450,
+      "oneAnswerField": true,
+      "focus": {
+        "style": "solid",
+        "width": "2px",
+        "color": "rgb(0, 102, 204)"
+      },
+      "geometry": {
+        "overflow": false,
+        "viewport": 450,
+        "inputBottom": 450
+      },
+      "captures": 0,
+      "runtimeErrors": []
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "oneAnswerField": true,
+      "focus": {
+        "style": "solid",
+        "width": "2px",
+        "color": "rgb(0, 102, 204)"
+      },
+      "geometry": {
+        "overflow": false,
+        "viewport": 844,
+        "inputBottom": 844
+      },
+      "captures": 0,
+      "runtimeErrors": []
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "oneAnswerField": true,
+      "focus": {
+        "style": "solid",
+        "width": "2px",
+        "color": "rgb(0, 102, 204)"
+      },
+      "geometry": {
+        "overflow": false,
+        "viewport": 568,
+        "inputBottom": 568
+      },
+      "captures": 0,
+      "runtimeErrors": []
+    },
+    {
+      "width": 320,
+      "height": 900,
+      "oneAnswerField": true,
+      "focus": {
+        "style": "solid",
+        "width": "2px",
+        "color": "rgb(0, 102, 204)"
+      },
+      "geometry": {
+        "overflow": false,
+        "viewport": 900,
+        "inputBottom": 900
+      },
+      "captures": 0,
+      "runtimeErrors": []
+    }
+  ],
+  "axe": [
+    {
+      "state": "question-with-settings-and-selection",
+      "violations": []
+    },
+    {
+      "state": "ready",
+      "violations": []
+    }
+  ]
+}

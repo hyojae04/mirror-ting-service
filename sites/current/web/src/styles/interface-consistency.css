@@ -1,0 +1,61 @@
+/* Explicit product direction: filled primary, transparent outlined secondary. */
+.app-shell:not(.mirror-deployment):not(.practice-mode) :is(.survey-primary,.help-primary,.library-primary,.pricing-action:not(:disabled),.public-hero>.ui-button){border:1px solid var(--color-action-primary);border-radius:var(--radius-pill);background:var(--color-action-primary);color:var(--color-white);min-height:44px;padding:11px 22px;box-shadow:none}
+.app-shell:not(.mirror-deployment):not(.practice-mode) :is(.survey-secondary,.help-empty button,.library-empty button,.library-back,.pricing-extras button,.help-document footer>a){border:1px solid var(--color-action-text);border-radius:var(--radius-pill);background:transparent;color:var(--color-action-text);min-height:44px;padding:11px 22px;box-shadow:none;text-decoration:none}
+.app-shell:not(.mirror-deployment):not(.practice-mode) :is(.help-categories button,.comparison-controls button){border-radius:var(--radius-pill);background:transparent}
+.app-shell:not(.mirror-deployment):not(.practice-mode) :is(.help-categories button[aria-pressed=true],.comparison-controls button[aria-pressed=true]){border-color:var(--color-action-text);color:var(--color-action-text)}
+.app-shell:not(.mirror-deployment):not(.practice-mode) .intro-story .intro-story-cta{border:1px solid var(--story-accent);border-radius:var(--radius-pill);background:transparent;color:var(--story-accent);box-shadow:none}
+.app-shell:not(.mirror-deployment):not(.practice-mode) .survey-home-start :is(.survey-primary,.survey-secondary){min-height:48px}
+.app-shell:not(.mirror-deployment):not(.practice-mode) .help-center :is(.help-document footer>a,.help-primary){min-height:48px}
+@media(hover:hover){.app-shell:not(.mirror-deployment):not(.practice-mode) :is(.survey-primary,.help-primary,.library-primary,.pricing-action:not(:disabled),.public-hero>.ui-button):hover{background:var(--color-link-blue);border-color:var(--color-link-blue)}}
+/* Main-page titles add a shared 6% increase to the existing hierarchy. */
+.app-shell:not(.mirror-deployment) .prompt-home-hero h1{font-size:calc(clamp(38.88px,4.536vw,62.64px)*var(--landing-title-scale,1))}
+.app-shell:not(.mirror-deployment) .service-introduction .intro-story h2{font-size:calc(clamp(30.24px,3.348vw,47.52px)*var(--landing-title-scale,1))}
+.app-shell:not(.mirror-deployment) .service-introduction .fit-scroll-title h2{font-size:calc(clamp(34.56px,4.32vw,56.16px)*var(--landing-title-scale,1))}
+.app-shell:not(.mirror-deployment) .service-introduction .fit-scroll-copy h3{font-size:calc(clamp(30.24px,3.24vw,43.2px)*var(--landing-title-scale,1))}
+.app-shell:not(.mirror-deployment) .public-hero h1{font-size:clamp(36.72px,4.32vw,60.48px)}
+.app-shell:not(.mirror-deployment) .public-section__copy h2{font-size:calc(clamp(24px,2.6vw,32px)*1.08)}
+.app-shell:not(.mirror-deployment) .lovable-pricing .pricing-heading h1{font-size:38.88px}
+.app-shell:not(.mirror-deployment) .pricing-faq h2{font-size:32.4px}
+.app-shell:not(.mirror-deployment) .faq-page h1{font-size:clamp(30.24px,3.24vw,43.2px)}
+.app-shell:not(.mirror-deployment) .faq-related h2{font-size:23.76px}
+.app-shell:not(.mirror-deployment) .library-heading h1{font-size:34.56px}
+.app-shell:not(.mirror-deployment) .mode-footer-cta h2{font-size:calc(clamp(30px,3.2vw,40px)*1.08*var(--landing-title-scale,1))}
+@media(max-width:900px){.app-shell:not(.mirror-deployment) .service-introduction .intro-story h2{font-size:calc(clamp(27px,7.02vw,36.72px)*var(--landing-title-scale,1))}}
+@media(max-width:800px){.app-shell:not(.mirror-deployment) .library-heading h1{font-size:30.24px}.app-shell:not(.mirror-deployment) .lovable-pricing .pricing-heading h1{font-size:32.4px}}
+@media(max-width:760px){.app-shell:not(.mirror-deployment) .service-introduction .fit-scroll-copy h3{font-size:calc(clamp(25.92px,6.48vw,34.56px)*var(--landing-title-scale,1))}.app-shell:not(.mirror-deployment) .service-introduction .fit-scroll-title h2{font-size:calc(clamp(29.16px,8.1vw,38.88px)*var(--landing-title-scale,1))}}
+@media(max-width:600px){.app-shell:not(.mirror-deployment):not(.practice-mode) .survey-home-start :is(.survey-primary,.survey-secondary){padding:11px 14px}}
+
+.survey-variant-visual [data-field=difficulty] .survey-choice{flex-direction:column;align-items:center;text-align:center;gap:14px;min-height:184px;padding:24px 20px}
+.survey-variant-visual [data-field=difficulty] .survey-choice-copy{align-items:center}
+.survey-variant-visual [data-field=difficulty] .survey-choice-icon{width:56px;height:56px;border-radius:12px}
+.survey-variant-visual [data-field=difficulty] .survey-choice-icon svg{width:32px;height:32px}
+
+/* Account entry stays a text group, with separate keyboard and pointer targets. */
+.app-shell .top-nav .nav-auth-links{display:inline-flex;align-items:center;gap:0;white-space:nowrap}
+.app-shell .top-nav .nav-auth-links .nav-auth-button{border:0;border-radius:0;background:transparent;padding:8px 2px;min-height:44px;box-shadow:none}
+.app-shell:not(.mirror-deployment):not(.practice-mode) > .top-nav :is(nav button,.nav-auth-button,.nav-auth-divider){font-family:var(--font-text);font-size:var(--text-body);font-weight:600;line-height:1.5;letter-spacing:normal;color:var(--color-graphite);text-decoration:none}
+.app-shell:not(.mirror-deployment):not(.practice-mode) > .top-nav nav button.active{color:var(--color-link-blue)}
+@media(hover:hover){.app-shell .top-nav .nav-auth-links .nav-auth-button:hover{background:transparent;text-decoration:none}}
+
+/* Public landing aliases reuse the existing system instead of legacy mode palettes. */
+.app-shell:not(.mirror-deployment):not(.practice-mode) .mode-home-page{--mode-accent:var(--color-action-primary);--mode-accent-soft:var(--color-ice);--mode-ink:var(--color-carbon);--mode-muted:var(--color-ash);--mode-subtle:var(--color-mist);--mode-border:var(--color-pebble);--mode-surface:var(--color-frost);--mode-card:var(--color-white);--mode-radius:var(--radius-content);background:var(--color-white);font-family:var(--font-text)}
+.app-shell:not(.mirror-deployment):not(.practice-mode) .mode-home-page :is(.prompt-home-description,.fit-scroll-copy p:not(.intro-eyebrow),.mode-footer-cta p,.home-site-footer__project p){color:var(--color-ash)}
+
+/* Landing-only sizing; natural wrapping remains available for zoomed text. */
+.app-shell:not(.mirror-deployment):not(.practice-mode) .mode-home-page{--landing-title-scale:1.06}
+.app-shell:not(.mirror-deployment) .mode-home-page .intro-story-copy{width:min(100%,560px)}
+.app-shell:not(.mirror-deployment) .mode-home-page .intro-story-copy p{max-width:100%}
+.app-shell:not(.mirror-deployment) .mode-home-page .prompt-home-inner{width:min(100%,880px)}
+.app-shell:not(.mirror-deployment) .mode-home-page .fit-scroll-copy h3{text-wrap:balance}
+.app-shell:not(.mirror-deployment):not(.practice-mode) .mode-home-page :is(.survey-home-start .survey-primary,.survey-home-start .survey-secondary,.intro-story-cta){min-height:48px;padding:10px 20px;font-size:15px!important;line-height:1.5}
+@media(max-width:600px){.app-shell:not(.mirror-deployment):not(.practice-mode) .mode-home-page :is(.survey-home-start .survey-primary,.survey-home-start .survey-secondary,.intro-story-cta){padding:10px 16px}}
+
+/* Inset the account links without changing other header controls. */
+.app-shell:not(.mirror-deployment):not(.practice-mode) > .top-nav .nav-auth-links{margin-inline-end:var(--space-6)}
+@media(max-width:1000px){.app-shell:not(.mirror-deployment):not(.practice-mode) > .top-nav .nav-auth-links{margin-inline-end:var(--space-2)}}
+
+/* Shared header geometry stays identical on the home and survey pages. */
+.app-shell:not(.mirror-deployment):not(.practice-mode)>.top-nav :is(.brand,nav button){min-height:64px}
+
+/* Matching widths for the two home actions; long story labels keep their natural width. */
+.app-shell:not(.mirror-deployment):not(.practice-mode) .mode-home-page .survey-home-start :is(.survey-primary,.survey-secondary){width:128px;max-width:100%}

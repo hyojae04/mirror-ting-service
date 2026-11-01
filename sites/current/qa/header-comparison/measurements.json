@@ -1,0 +1,46 @@
+[
+  {
+    "version": "before",
+    "width": 1200,
+    "hover": "로그인",
+    "size": "14px",
+    "color": "rgb(29, 29, 31)",
+    "weight": "600",
+    "lineHeight": "normal",
+    "letterSpacing": "normal",
+    "decoration": "underline"
+  },
+  {
+    "version": "before",
+    "width": 390,
+    "hover": "회원가입",
+    "size": "13px",
+    "color": "rgb(29, 29, 31)",
+    "weight": "600",
+    "lineHeight": "normal",
+    "letterSpacing": "normal",
+    "decoration": "underline"
+  },
+  {
+    "version": "after",
+    "width": 1200,
+    "hover": "로그인",
+    "size": "14px",
+    "color": "rgb(71, 71, 71)",
+    "weight": "600",
+    "lineHeight": "21px",
+    "letterSpacing": "normal",
+    "decoration": "none"
+  },
+  {
+    "version": "after",
+    "width": 390,
+    "hover": "회원가입",
+    "size": "14px",
+    "color": "rgb(71, 71, 71)",
+    "weight": "600",
+    "lineHeight": "21px",
+    "letterSpacing": "normal",
+    "decoration": "none"
+  }
+]

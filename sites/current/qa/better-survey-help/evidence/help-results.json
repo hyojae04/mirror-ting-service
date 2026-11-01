@@ -1,0 +1,152 @@
+[
+  {
+    "width": 1440,
+    "height": 900,
+    "states": 3,
+    "axe": true,
+    "hierarchy": [
+      {
+        "level": "H1",
+        "size": 36
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      }
+    ],
+    "runtimeErrors": []
+  },
+  {
+    "width": 1024,
+    "height": 768,
+    "states": 3,
+    "axe": false,
+    "hierarchy": [
+      {
+        "level": "H1",
+        "size": 30.72
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      }
+    ],
+    "runtimeErrors": []
+  },
+  {
+    "width": 768,
+    "height": 900,
+    "states": 3,
+    "axe": false,
+    "hierarchy": [
+      {
+        "level": "H1",
+        "size": 28
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      }
+    ],
+    "runtimeErrors": []
+  },
+  {
+    "width": 720,
+    "height": 450,
+    "states": 3,
+    "axe": false,
+    "hierarchy": [
+      {
+        "level": "H1",
+        "size": 28
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      }
+    ],
+    "runtimeErrors": []
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "states": 3,
+    "axe": false,
+    "hierarchy": [
+      {
+        "level": "H1",
+        "size": 28
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      }
+    ],
+    "runtimeErrors": []
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "states": 3,
+    "axe": true,
+    "hierarchy": [
+      {
+        "level": "H1",
+        "size": 28
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      },
+      {
+        "level": "H2",
+        "size": 22
+      }
+    ],
+    "runtimeErrors": []
+  }
+]

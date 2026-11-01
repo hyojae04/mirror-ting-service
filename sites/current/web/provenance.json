@@ -1,0 +1,5 @@
+{
+  "repository": "https://github.com/hyojae04/mirror-ting-service",
+  "commit": "fce5f0ff13cbcca8d03e73ed93dd778524a1629b",
+  "changes": "Design-only deployment: original frontend preserved, simulation and capture disabled."
+}

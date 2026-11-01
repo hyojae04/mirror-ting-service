@@ -1,0 +1,53 @@
+/* The live counterpart owns the stage; transcript and composer stay beside it. */
+.app-shell.editor-workspace .lovable-central-chat.is-simulation .simulation-workbench { grid-template-columns: minmax(0, 1fr) 350px; background: #f5f6f8; }
+.simulation-media { display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; min-width: 0; min-height: 0; height: 100%; padding: 16px 24px 12px; }
+.simulation-stage-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--mode-muted); font-size: 12px; }
+.simulation-stage-heading > span:first-child { display: flex; align-items: center; gap: 8px; color: var(--mode-ink); font-weight: 500; }
+.simulation-stage-heading i { width: 7px; height: 7px; border-radius: 50%; background: #27966a; }
+.simulation-avatar { flex: 1; position: relative; min-height: 0; overflow: hidden; border-radius: 20px; background: #dce4ec; isolation: isolate; }
+.simulation-avatar > .counterpart-video { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 38%; }
+.simulation-avatar-caption { position: absolute; left: 16px; top: 16px; display: grid; gap: 5px; padding: 10px 14px; color: white; background: rgb(20 28 40 / .5); border: 1px solid rgb(255 255 255 / .16); border-radius: 12px; backdrop-filter: blur(12px); }
+.simulation-avatar-caption strong { font-size: 14px; font-weight: 500; }
+.simulation-avatar-caption span { font-size: 11px; color: rgb(255 255 255 / .8); }
+.simulation-avatar-line { position: absolute; bottom: 20px; left: 20px; right: 20px; margin: 0; padding: 16px 20px; max-height: 28%; overflow: auto; border: 1px solid rgb(255 255 255 / .25); border-radius: 16px; background: rgb(15 23 38 / .72); color: #fff; font-size: clamp(14px, 1.3vw, 18px); line-height: 1.7; backdrop-filter: blur(16px); white-space: pre-wrap; overflow-wrap: anywhere; }
+.simulation-camera { position: absolute; top: 16px; right: 16px; width: clamp(100px, 13vw, 176px); aspect-ratio: 4 / 3; overflow: hidden; border: 1px solid rgb(255 255 255 / .6); border-radius: 12px; background: #1c2533; color: white; display: grid; place-items: center; font-size: 12px; box-shadow: 0 6px 24px rgb(0 0 0 / .15); }
+.simulation-camera video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.simulation-camera video[hidden] { display: none; }
+.simulation-media-controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.simulation-media-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--mode-border); border-radius: 12px; background: var(--mode-card); color: var(--mode-ink); font: inherit; font-size: 12px; cursor: pointer; }
+.simulation-media-controls button[aria-pressed=true] { border-color: #b9c6d9; background: #eaf0f8; }
+.simulation-media-controls .simulation-dictate-button { background: var(--mode-accent); border-color: var(--mode-accent); color: white; }
+.simulation-media-note { margin: 0; color: var(--mode-muted); text-align: center; font-size: 11px; line-height: 1.5; }
+.simulation-chat-page .simulation-chat-error { padding: 10px 12px; border: 1px solid #e6a3a5; border-radius: 10px; background: #fff0f0; color: #a01820; }
+.app-shell.editor-workspace .is-simulation .simulation-chat-conversation { border-left: 1px solid var(--mode-border); background: var(--mode-card); }
+.simulation-transcript-heading { display: flex; justify-content: space-between; gap: 8px; padding: 20px 18px 18px; border-bottom: 1px solid var(--mode-border); font-size: 12px; }
+.simulation-transcript-heading span { color: var(--mode-muted); font-size: 11px; }
+.app-shell.editor-workspace .is-simulation .simulation-chat-transcript { padding: 20px 0 12px; }
+.app-shell.editor-workspace .is-simulation .simulation-transcript-inner { padding: 0 16px; }
+.app-shell.editor-workspace .is-simulation .simulation-message { margin-bottom: 22px; }
+.app-shell.editor-workspace .is-simulation .simulation-message p { font-size: 13px; line-height: 1.8; }
+.app-shell.editor-workspace .is-simulation .simulation-chat-input-area { width: 100%; padding: 12px; border-top: 1px solid var(--mode-border); }
+.app-shell.editor-workspace .is-simulation .simulation-chat-input-area form { border-radius: 16px; }
+.simulation-composer-hint { margin: 8px 0 0; color: var(--mode-muted); font-size: 10px; }
+.app-shell.editor-workspace .is-simulation .editor-context { position: absolute; z-index: 3; right: 0; top: 0; bottom: 0; width: min(340px, calc(100% - 24px)); margin: 8px; box-shadow: 0 12px 40px rgb(15 23 42 / .16); }
+.is-simulation.context-open .editor-context-scrim { position: absolute; z-index: 2; inset: 0; display: block; border: 0; background: rgb(15 23 42 / .15); }
+@media (max-width: 1100px) {
+  .simulation-media { padding: 12px; }
+  .simulation-media-controls button span { display: none; }
+  .simulation-media-controls button { width: 44px; padding: 0; }
+}
+@media (max-width: 800px) {
+  .app-shell.editor-workspace .lovable-central-chat.is-simulation .simulation-workbench { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(260px, 48svh) minmax(0, 1fr); }
+  .simulation-media { gap: 8px; padding: 8px; }
+  .simulation-stage-heading { font-size: 11px; }
+  .simulation-avatar { border-radius: 14px; }
+  .simulation-avatar-caption { top: 10px; left: 10px; padding: 7px 9px; }
+  .simulation-avatar-caption strong { font-size: 12px; }
+  .simulation-avatar-caption span { font-size: 10px; }
+  .simulation-camera { top: 10px; right: 10px; width: 76px; border-radius: 8px; }
+  .simulation-avatar-line { left: 10px; right: 10px; bottom: 10px; padding: 9px 12px; max-height: 32%; font-size: 12px; line-height: 1.5; }
+  .simulation-media-note { font-size: 10px; }
+  .app-shell.editor-workspace .is-simulation .simulation-chat-conversation { border-left: 0; border-top: 1px solid var(--mode-border); }
+  .simulation-transcript-heading { padding: 10px 16px; }
+  .app-shell.editor-workspace .is-simulation .simulation-chat-transcript { padding-top: 12px; }
+}

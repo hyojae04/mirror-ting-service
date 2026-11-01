@@ -1,0 +1,109 @@
+.page.mode-home-page:has(> .prompt-home-hero) { padding-top: 0; font-family:var(--font-text); }
+.mode-home-page .prompt-home-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: center;
+  min-height: calc(100svh - 80px);
+  padding: 40px 24px 94px;
+  overflow: hidden;
+  background: var(--color-ice);
+}
+.prompt-home-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -3%;
+  background:
+    radial-gradient(ellipse 46% 48% at 50% 28%, var(--color-ice) 24%, transparent 90%),
+    radial-gradient(ellipse 60% 45% at 0% 108%, rgb(var(--brand-mark-navy) / .24) 24%, transparent 85%),
+    radial-gradient(ellipse 60% 45% at 100% 108%, rgb(var(--brand-mark-navy) / .24) 24%, transparent 85%),
+    radial-gradient(ellipse 85% 70% at 50% 95%, rgb(var(--brand-mark-blue) / .56) 12%, transparent 86%),
+    radial-gradient(ellipse 42% 45% at 0% 75%, rgb(var(--brand-mark-blue) / .48) 8%, transparent 90%),
+    radial-gradient(ellipse 42% 45% at 100% 75%, rgb(var(--brand-mark-blue) / .48) 8%, transparent 90%);
+  filter: blur(18px);
+  pointer-events: none;
+}
+.prompt-home-inner { width: min(100%, 800px); margin: auto; text-align: center; }
+.prompt-home-hero h1 { margin: 0; color: var(--color-carbon); font-size: clamp(36px, 4.5vw, 60px); line-height: 1.2; letter-spacing: -.035em; font-weight: 650; word-break: keep-all; text-wrap: balance; }
+.prompt-home-description { max-width: 640px; margin: 12px auto 32px; color: var(--color-ash); font-size: 17px; line-height: 1.6; word-break: keep-all; text-wrap: pretty; }
+.prompt-mobile-break { display: none; }
+.prompt-home-composer { padding: 18px 20px 12px; border: 1px solid var(--mode-border); border-radius: var(--radius-composer); background: var(--mode-card); box-shadow: 0 10px 40px color-mix(in srgb, var(--color-carbon) 4%, transparent); text-align: left; }
+.prompt-home-composer textarea { display: block; width: 100%; min-height: 64px; padding: 0; border: 0; outline: 0; resize: none; background: transparent; color: var(--mode-ink); font: inherit; font-size: var(--text-reading); line-height: 1.8; }
+.prompt-home-composer textarea::placeholder { color: var(--color-ash); }
+.prompt-home-error { margin: 12px 0 0; color: var(--danger); font-size: var(--text-body); line-height: 1.6; }
+.prompt-home-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.prompt-home-toolbar button { display: grid; place-items: center; flex-shrink: 0; width: var(--control-size); height: var(--control-size); padding: 0; border: 0; border-radius: 50%; background: var(--color-action-primary); color: var(--mode-card); font-size: 28px; cursor: pointer; }
+.prompt-home-toolbar button:disabled { background: var(--color-pebble); color: var(--color-ash); cursor: default; }
+.prompt-home-hero button:focus-visible { outline: 3px solid var(--focus-ring-color); outline-offset: 4px; }
+@media (max-width: 600px) {
+  .mode-home-page .prompt-home-hero { min-height: calc(100svh - 80px); padding: 32px 20px 60px; }
+  .prompt-home-description { font-size: 15px; margin-bottom: 28px; }
+  .prompt-mobile-break { display: initial; }
+  .prompt-home-composer { padding: 16px 18px 12px; border-radius: 22px; }
+  .prompt-home-composer textarea { min-height: 88px; }
+}
+
+/* The landing stays in one reading flow instead of three parallel panels. */
+.mode-home-page .studio-layout,
+.mode-home-page .workplace-scenario-grid,
+.mode-home-page .workplace-process-strip,
+.mode-home-page .workplace-workspace,
+.mode-home-page .interview-report-preview {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mode-home-page .studio-explorer {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  border-inline-end: 0;
+  border-bottom: 1px solid var(--mode-border);
+}
+.mode-home-page .studio-explorer > small { padding: 0 12px; }
+.mode-home-page .studio-explorer__brand { margin: 0 0 0 auto; padding: 0 12px; }
+.mode-home-page .studio-inspector {
+  border-inline-start: 0;
+  border-top: 1px solid var(--mode-border);
+}
+.app-shell:not(.practice-mode):not(.mirror-deployment):has(.prompt-home-hero,.scenario-survey:not([data-preview])) > .top-nav {
+  border: 0;
+  background: var(--color-ice);
+  box-shadow: none;
+}
+
+.hero-typing-word { position: relative; display: inline-block; width: 1.9em; margin-inline-end: .12em; color: rgb(var(--brand-mark-blue) / .86); text-align: left; }
+.hero-typing-word::after { content: ""; position: absolute; top: .13em; bottom: .08em; margin-left: .02em; width: 2px; background: currentColor; opacity: 0; }
+@keyframes hero-caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) { .hero-typing-word::after { opacity: 1; animation: hero-caret 1s steps(1) infinite; } }
+@media (prefers-reduced-motion: reduce) { .hero-typing-word::after { display: none; animation: none; } }
+
+
+
+.mode-home-page .mode-footer-cta--prompt { position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: center; gap: 32px; padding-block: 80px; text-align: center; }
+.mode-footer-cta--prompt::before { content: ""; position: absolute; z-index: -1; inset: 0 calc((min(1180px, 100vw - 48px) - 100vw) / 2); pointer-events: none; background: radial-gradient(ellipse at 15% 110%, rgb(var(--brand-mark-blue) / .15), transparent 60%), radial-gradient(ellipse at 85% 110%, rgb(var(--brand-mark-navy) / .12), transparent 60%); }
+.mode-footer-cta--prompt > div { max-width: 800px; }
+.mode-footer-cta--prompt .prompt-home-composer { width: min(100%, 800px); box-shadow: 0 18px 48px rgb(var(--brand-mark-navy) / .10); }
+.prompt-home-toolbar button:focus-visible { outline: 3px solid var(--focus-ring-color); outline-offset: 4px; }
+
+.prompt-mode-dropdown { position: relative; }
+.prompt-home-toolbar .prompt-mode-trigger { display: flex; align-items: center; gap: 10px; width: auto; height: var(--control-size); padding: 8px 10px; border-radius: var(--radius-content); background: transparent; color: var(--color-ash); font-size: var(--text-body); line-height: 24px; white-space: nowrap; }
+.prompt-mode-trigger:hover, .prompt-mode-trigger[aria-expanded="true"] { background: var(--color-ice); }
+.prompt-mode-menu { position: absolute; z-index: 20; top: calc(100% + 8px); left: 0; width: 164px; padding: 5px; border: 1px solid var(--color-pebble); border-radius: var(--radius-choice); background: var(--color-white); box-shadow: 0 8px 28px rgb(var(--brand-mark-navy) / .14); text-align: left; }
+.prompt-mode-menu [role="option"] { display: flex; align-items: center; justify-content: space-between; min-height: 38px; padding: 8px 10px; border-radius: 7px; color: var(--color-carbon); font-size: var(--text-body); line-height: 22px; cursor: pointer; }
+.prompt-mode-menu [role="option"].is-active { background: var(--color-ice); }
+.prompt-mode-menu [aria-selected="true"] { color: var(--color-action-text); font-weight: 600; }
+
+/* Keep explanatory copy lighter than headings and action labels. */
+.mode-home-page :is(.prompt-home-description, .studio-hero__copy > p, .section-intro > p, .studio-tour__heading > p, .studio-tour__step > p, .home-fit-overview__item p, .workplace-scenario-card p, .dialogue-version > p, .coaching-card p, .mode-footer-cta > div > p, .home-site-footer__project p, .studio-caption) {
+  font-weight: 400;
+}
+
+.prompt-composer-label { display:block; margin-bottom:12px; color:var(--mode-ink); font-size:var(--text-body); font-weight:600; line-height:1.5; }
+.prompt-home-toolbar > button[type="submit"] { margin-inline-start:auto; }
+.prompt-home-composer:focus-within { outline:2px solid var(--focus-ring-color); outline-offset:3px; }
+.prompt-mode-menu { max-width:calc(100vw - 48px); }
+@media (max-width:600px) { .prompt-home-composer { border-radius:var(--radius-composer); } }
+@media (forced-colors:active) { .prompt-home-composer:focus-within, .prompt-home-composer textarea:focus-visible { outline-color:Highlight; } }
+
+.mode-home-page :is(.prompt-home-description, .studio-hero__copy > p, .section-intro > p, .studio-tour__heading > p, .studio-tour__step > p, .home-fit-overview__item p, .workplace-scenario-card p, .dialogue-version > p, .coaching-card p, .mode-footer-cta > div > p, .home-site-footer__project p) { color:var(--color-ash); }

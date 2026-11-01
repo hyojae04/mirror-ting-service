@@ -1,0 +1,8 @@
+{
+  "phase": "before",
+  "actualCapture": true,
+  "service": "MIRROR-TING / 서비스 소개\n\n중요한 대화 전에,\n먼저 연습해요.\n\nMirror-Ting에서는 AI와 대화를 미리 연습할 수 있어요. 답변·목소리·표정·자세를 함께 살펴보고, 다음 대화에서 바꿀 한 가지를 찾아요.\n\n연습할 상황 적기",
+  "button": "모든 사용 방법 보기\n설문 시작하기",
+  "terms": "직장대화",
+  "error": "AI에 연결하지 못했어요. 답변은 그대로 있으니 다시 시도해주세요."
+}

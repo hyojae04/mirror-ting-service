@@ -1,0 +1,6 @@
+Built-in image_gen · ui-mockup · 2026-10-31
+
+Create one flat high-fidelity desktop Korean Mirror-Ting questionnaire screenshot, 1440×1080 proportions. White background, #1d1d1f headings, #474747 body, #0066cc blue emphasis, #f4f8fb selected fill, #e2e2e5 structure, Pretendard/SF Pro-like sans-serif. Center a 760px form, no sidebar or chat. Slim logo header and four-step progress: 연습 상황 / 내 상황과 목표 / 연습 방식 / 최종 확인. Headline 어떤 대화를 준비할까요? and description 연습할 대화와 상황을 골라주세요. Two large visual-choice cards: briefcase/interview desk symbol with 면접; speech bubbles with 직장 대화. Large quiet pale-blue icon tiles, text below, precise monoline SVG-like pictograms, not photos or 3D. First selected with blue border and circular check, not color alone. Compact situation options and 직접 정할게요, an information helper, 홈으로 / 다음 actions. Keep Korean sharp, no payment, no claims that actual simulation or feedback already runs. This is the larger visual-choice alternative to compact horizontal icon cards.
+
+Generated file (copied into repository): web/public/design/survey-visual-reference.png
+Actual implementation follows the visual structure while retaining the existing live question data and native controls.

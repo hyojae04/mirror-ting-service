@@ -1,0 +1,34 @@
+{
+  "slowPlayback": {
+    "opacity": "0.221262",
+    "rect": {
+      "width": 760,
+      "height": 81.296875
+    }
+  },
+  "reduced": {
+    "typingStopped": true,
+    "story": [
+      {
+        "transform": "none",
+        "transition": "1e-06s",
+        "visible": "visible"
+      },
+      {
+        "transform": "none",
+        "transition": "1e-06s",
+        "visible": "visible"
+      },
+      {
+        "transform": "none",
+        "transition": "1e-06s",
+        "visible": "visible"
+      },
+      {
+        "transform": "none",
+        "transition": "1e-06s",
+        "visible": "visible"
+      }
+    ]
+  }
+}

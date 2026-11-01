@@ -1,0 +1,213 @@
+import { useEffect, useRef, useState } from "react";
+import { Check } from "reicon-react/icons/Check";
+import { ChevronRight } from "reicon-react/icons/ChevronRight";
+import { currentDeploymentServiceMode } from "../lib/deploymentServiceMode";
+import { WORKPLACE_SCENARIO_SLUG } from "../lib/workplaceTrack";
+import { JOB_ROLES, isValidUid } from "../lib/nfc";
+import { issueNfcCard } from "../lib/pocApi";
+import { useNfcTap } from "../lib/useNfcTap";
+
+/** 카드 발급 키오스크 (E-17 / S-B2B-104) — ?kiosk=issue로 진입하는 전용 화면.
+ *
+ *  흐름: ① 직무 선택 → ② 카드 태그 대기(kiosk 리더 1초 폴링) → ③ 발급(POST /nfc/issue)
+ *  → ④ 완료 안내 → 8초 뒤 ①로 자동 복귀. 오류(422·네트워크)는 운영자용 토스트 후 대기로 복귀.
+ *  수동 폴백: 리더가 카드를 못 읽으면 운영자가 UID를 직접 입력해 발급한다 (S-B2B-106).
+ *  이 화면은 발급 PC 전용이라 전시 유휴 리셋(AttractLoop·리포트 타임아웃) 대상이 아니며
+ *  자체 복귀(8초)만 사용한다.
+ */
+const DONE_RETURN_MS = 8000;
+
+export function KioskIssuePage() {
+  const workplace = currentDeploymentServiceMode() === "workplace";
+  const roles = workplace ? [{ id: "office_admin", label: "직장 대화", text: "출근·업무·퇴근의 대화를 경험해요.", brand: "" }] : JOB_ROLES;
+  const [consentAgreed, setConsentAgreed] = useState(false);
+  const [stage, setStage] = useState("select"); // select | wait | done
+  const [jobRole, setJobRole] = useState(null);
+  const [issuedCard, setIssuedCard] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState("");
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualUid, setManualUid] = useState("");
+  const busyRef = useRef(false);
+  const manualInputRef = useRef(null);
+  const [invalidUid, setInvalidUid] = useState(false);
+
+  // 오류는 운영자가 읽고 닫거나 다시 시도할 때까지 유지한다.
+  const showToast = (message) => setToast(message);
+
+  const reset = () => {
+    setStage("select");
+    setConsentAgreed(false);
+    setJobRole(null);
+    setIssuedCard(null);
+    setManualOpen(false);
+    setManualUid("");
+    setToast("");
+    setInvalidUid(false);
+  };
+
+  // 발급 완료 화면은 8초 뒤 직무 선택으로 자동 복귀한다 (다음 관람객 준비).
+  useEffect(() => {
+    if (stage !== "done") return undefined;
+    const timer = window.setTimeout(reset, DONE_RETURN_MS);
+    return () => window.clearTimeout(timer);
+  }, [stage]);
+
+  const issue = async (uid) => {
+    if (busyRef.current || !jobRole || (workplace && !consentAgreed)) return;
+    busyRef.current = true;
+    setBusy(true);
+    setToast("");
+    setInvalidUid(false);
+    try {
+      const card = await issueNfcCard({ uid, jobRole: jobRole.id, ...(workplace ? { scenarioSlug: WORKPLACE_SCENARIO_SLUG, consentAgreed } : {}) });
+      setIssuedCard(card);
+      setStage("done");
+      setManualOpen(false);
+      setManualUid("");
+    } catch (error) {
+      // 422(알 수 없는 직무)·네트워크 오류 — 짧은 안내 후 대기 화면 유지
+      showToast(error?.message || "발급에 실패했어요. 카드를 다시 태그해 주세요.");
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  // 카드 태그 감지 — 대기 화면일 때만 kiosk 리더를 폴링한다 (누수 없이 자동 정리).
+  useNfcTap({
+    reader: "kiosk",
+    enabled: stage === "wait",
+    onTap: (tap) => issue(tap.uid),
+  });
+
+  const submitManualUid = () => {
+    const uid = manualUid.trim();
+    if (!isValidUid(uid)) {
+      showToast("UID 형식이 올바르지 않아요 — 16진수 4~32자로 입력해 주세요.");
+      setInvalidUid(true);
+      manualInputRef.current?.focus();
+      return;
+    }
+    issue(uid);
+  };
+
+  return (
+    <main className="kiosk-issue-screen" data-stage={stage}>
+      <header className="kiosk-issue-brand">
+        <strong>Mirror-Ting</strong>
+        <span className="kiosk-issue-badge">직무 카드 발급</span>
+      </header>
+
+        {stage === "select" && (
+          <section key="select" className="kiosk-issue-step" aria-label="직무 선택">
+            <h1>어떤 직무로 일해볼까요?</h1>
+            <p className="kiosk-issue-sub">직무를 고르면 카드를 발급해 드려요. 미러에 카드를 태그하면 바로 근무가 시작돼요.</p>
+            <div className="kiosk-role-grid">
+              {roles.map((role) => (
+                <button
+                  key={role.id}
+                  type="button"
+                  className={`kiosk-role-card ${role.brand}`}
+                  onClick={() => { setJobRole(role); setConsentAgreed(false); setStage(workplace ? "consent" : "wait"); }}
+                >
+                  <img src="/icons/mirror-ting-mark-slim.png" alt="" aria-hidden="true" />
+                  <strong>{role.label}</strong>
+                  <small>{role.text}</small>
+                  <em>카드 발급하기 <ChevronRight size={15} aria-hidden="true" /></em>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {stage === "consent" && <section key="consent" className="kiosk-issue-step" aria-label="체험 동의">
+          <h1>시작 전에 확인해 주세요.</h1>
+          <p className="kiosk-issue-sub">미러에서 안내가 끝나면 카메라와 마이크를 사용해 대화를 시작해요. 연습 음성과 분석 결과는 이 브라우저에 보관되며, 서버의 세션·기록 처리도 이루어져요. AI 상대 음성은 외부 음성 서비스로 만들 수 있어요.</p>
+          <label className="consent-check"><input type="checkbox" checked={consentAgreed} onChange={event => setConsentAgreed(event.target.checked)} /><span>안내한 카메라·음성 분석 및 개인정보 처리에 동의해요.</span></label>
+          <button type="button" className="kiosk-role-card" disabled={!consentAgreed} onClick={() => setStage("wait")}>동의하고 카드 발급하기</button>
+          <button type="button" className="kiosk-back-link" onClick={reset}>돌아가기</button>
+        </section>}
+
+        {stage === "wait" && (
+          <section key="wait" className="kiosk-issue-step" aria-label="카드 태그 대기">
+            <div className="kiosk-tap-zone" aria-hidden="true">
+              <span className="kiosk-tap-ripple" />
+              <span className="kiosk-tap-ripple delay" />
+              <span className="kiosk-tap-card"><img src="/icons/mirror-ting-mark-slim.png" alt="" /></span>
+            </div>
+            <h1>{busy ? "카드를 발급하고 있어요" : "카드를 리더에 올려주세요"}</h1>
+            <p className="kiosk-issue-sub">
+              <span className="kiosk-wait-role">{jobRole?.label}</span> 카드를 준비했어요.
+              {busy ? " 잠시만 기다려 주세요." : " 카드를 올리면 자동으로 발급돼요."}
+            </p>
+            <span className={`kiosk-wait-spinner ${busy ? "is-busy" : ""}`} aria-hidden="true" />
+
+            <div className="kiosk-manual">
+              {!manualOpen ? (
+                <button type="button" className="kiosk-manual-toggle" onClick={() => setManualOpen(true)}>
+                  카드가 인식되지 않나요?
+                </button>
+              ) : (
+                <div className="kiosk-manual-panel">
+                  <label htmlFor="kiosk-manual-uid">운영자용 — 카드 UID 직접 입력</label>
+                  <div className="kiosk-manual-row">
+                    <input
+                      id="kiosk-manual-uid"
+                      ref={manualInputRef}
+                      aria-invalid={invalidUid || undefined}
+                      aria-describedby={invalidUid && toast ? "kiosk-issue-error" : undefined}
+                      value={manualUid}
+                      onChange={(event) => setManualUid(event.target.value)}
+                      onKeyDown={(event) => { if (event.key === "Enter") submitManualUid(); }}
+                      placeholder="예: 04A1B2C3D4"
+                      autoComplete="off"
+                      spellCheck="false"
+                      disabled={busy}
+                    />
+                    <button type="button" onClick={submitManualUid} disabled={busy}>발급</button>
+                  </div>
+                  <small>카드 뒷면·리더 프로그램에 표시된 UID(16진수)를 입력해요.</small>
+                </div>
+              )}
+            </div>
+            <button type="button" className="kiosk-back-link" onClick={reset} disabled={busy}>직무 다시 선택</button>
+          </section>
+        )}
+
+        {stage === "done" && (
+          <section key="done" className="kiosk-issue-step" aria-label="발급 완료">
+            <span
+              className="kiosk-done-check"
+            >
+              <Check size={44} aria-hidden="true" />
+            </span>
+            <h1>카드 발급 완료</h1>
+            <p className="kiosk-done-role"><strong>{jobRole?.label}</strong> 카드가 준비됐어요.</p>
+            <p className="kiosk-issue-sub">미러 앞에서 카드를 태그하면 바로 시작됩니다.</p>
+            {issuedCard?.issued_count > 1 && (
+              <small className="kiosk-done-note">재발급된 카드예요 — 이전 직무 설정은 새 직무로 바뀌었어요.</small>
+            )}
+            <div className="kiosk-done-return" aria-hidden="true">
+              <i style={{ animationDuration: `${DONE_RETURN_MS}ms` }} />
+            </div>
+            <button type="button" className="kiosk-back-link" onClick={reset}>바로 처음으로</button>
+          </section>
+        )}
+
+        {toast && (
+          <div
+            className="kiosk-toast"
+            role="alert"
+          >
+            <span id="kiosk-issue-error">{toast}</span>
+            <button type="button" onClick={() => setToast("")}>안내 닫기</button>
+          </div>
+        )}
+
+      <footer className="kiosk-issue-foot">
+        <span>{workplace ? "직장에서의 하루를 따라 대화를 연습해요." : "카페 온도에서 손님 응대 대화를 연습해요."}</span>
+      </footer>
+    </main>
+  );
+}

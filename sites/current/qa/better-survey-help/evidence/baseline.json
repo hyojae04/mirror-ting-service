@@ -1,0 +1,48 @@
+[
+  {
+    "width": 1440,
+    "headings": [
+      {
+        "text": "처음 연습 시작하기",
+        "size": "48px"
+      },
+      {
+        "text": "상황을 적어주세요",
+        "size": "27px"
+      },
+      {
+        "text": "AI와 설정을 확인해요",
+        "size": "27px"
+      },
+      {
+        "text": "설정을 확정해요",
+        "size": "27px"
+      }
+    ],
+    "overflow": false,
+    "axe": []
+  },
+  {
+    "width": 320,
+    "headings": [
+      {
+        "text": "처음 연습 시작하기",
+        "size": "36px"
+      },
+      {
+        "text": "상황을 적어주세요",
+        "size": "27px"
+      },
+      {
+        "text": "AI와 설정을 확인해요",
+        "size": "27px"
+      },
+      {
+        "text": "설정을 확정해요",
+        "size": "27px"
+      }
+    ],
+    "overflow": false,
+    "axe": []
+  }
+]

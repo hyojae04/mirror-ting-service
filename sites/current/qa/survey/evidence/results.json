@@ -1,0 +1,34 @@
+[
+  {
+    "width": 1440,
+    "centered": true,
+    "apiOnlyOnSubmit": true,
+    "answerPreserved": true,
+    "overflow": false,
+    "runtimeErrors": []
+  },
+  {
+    "width": 768,
+    "centered": true,
+    "apiOnlyOnSubmit": true,
+    "answerPreserved": true,
+    "overflow": false,
+    "runtimeErrors": []
+  },
+  {
+    "width": 390,
+    "centered": true,
+    "apiOnlyOnSubmit": true,
+    "answerPreserved": true,
+    "overflow": false,
+    "runtimeErrors": []
+  },
+  {
+    "width": 320,
+    "centered": true,
+    "apiOnlyOnSubmit": true,
+    "answerPreserved": true,
+    "overflow": false,
+    "runtimeErrors": []
+  }
+]
