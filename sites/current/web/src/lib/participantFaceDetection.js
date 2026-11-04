@@ -12,5 +12,5 @@ export function detectParticipantFace(detector, video, canvas, participant, time
     const face = participantFace(mapped, participant);
     if (face) return face;
   }
-  return participantFace(detector.detectForVideo(video, timestamp + .001).faceLandmarks || [], participant);
+  return participantFace(detector.detectForVideo(video, timestamp + 1).faceLandmarks || [], participant);
 }

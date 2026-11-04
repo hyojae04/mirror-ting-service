@@ -6,6 +6,7 @@ import "../styles/interface-consistency.css";
 import "../styles/survey-layout.css";
 import { HomePage } from "./HomePage";
 import { SurveyComparisonPage } from "./SurveyComparisonPage";
+import { SimulationChatPage } from "./SimulationChatPage";
 import { ScenarioSurveyPage } from "./ScenarioSurveyPage";
 import { FaqPage } from "./FaqPage";
 import { PricingPage } from "./PricingPage";
@@ -62,13 +63,15 @@ export function ServiceEntryShell({
   } = actions;
   const mirror = isMirrorDeployment();
   const [promptTurns, setPromptTurns] = useState(5);
+  const [usePromptChat, setUsePromptChat] = useState(false);
   const [surveyHasDraft, setSurveyHasDraft] = useState(false);
   useEffect(() => {if(active !== "simulation-chat")setSurveyHasDraft(false);}, [active]);
   const navigateFromHeader = target => {
     if(active === "simulation-chat" && surveyHasDraft && !window.confirm("다른 화면으로 이동하면 작성한 답변이 사라져요. 이동할까요?"))return;
     navigate(target);
   };
-  const beginPrompt = () => navigate("simulation-chat");
+  const beginPrompt = () => { setUsePromptChat(false); navigate("simulation-chat"); };
+  const beginPromptChat = () => { setUsePromptChat(true); navigate("simulation-chat"); };
   const analysisVideoRef = useRef(null);
   const overlayRef = useRef(null);
   const idlePausedRef = useRef(false);
@@ -106,7 +109,7 @@ export function ServiceEntryShell({
   const current = SERVICE_ENTRY_FLOW.find((item) => item.id === active) || SERVICE_ENTRY_FLOW[0];
   const navigationView = SETUP_NAV_VIEWS.has(active) ? "service" : active === "result" ? "records" : active;
 
-  return <div className={`app-shell ${active === "simulation-chat" ? "editor-workspace" : ""} ${mirror ? "mirror-deployment" : ""} ${active === "practice" ? "practice-mode" : ""} ${["home", "service"].includes(active) ? `home-mode home-mode-${serviceMode?.id || "workplace"}` : ""}`}>
+  return <div className={`app-shell ${workspace && usePromptChat ? "member-workspace" : ""} ${active === "simulation-chat" ? "editor-workspace" : ""} ${mirror ? "mirror-deployment" : ""} ${active === "practice" ? "practice-mode" : ""} ${["home", "service"].includes(active) ? `home-mode home-mode-${serviceMode?.id || "workplace"}` : ""}`}>
     {!mirror && <a className="skip-link" href="#main-content">본문으로 건너뛰기</a>}
     {!mirror && !workspace && <a className="skip-to-content" href="#main-content">본문으로 이동</a>}
     {!mirror && <TopNav active={navigationView} scenarioTitle={session?.scenario?.title || previewScenario?.title} menuOpen={menuOpen} onMenuOpen={setMenuOpen} onNavigate={navigateFromHeader} scenarios={apiScenarios} onScenarioSelect={(slug) => { setPocScenarioSlug(slug); navigate("role"); }} practiceMode={active === "practice"} />}
@@ -118,14 +121,14 @@ export function ServiceEntryShell({
       {mirror && active === "result" && report && session?.kiosk_link_status === "linked" && <p className="mirror-card-notice" role="status">리포트가 준비됐어요. 출력 키오스크에서 같은 사원증을 태그해 주세요.</p>}
       {mirror && active === "result" && report && session?.kiosk_link_status === "not_requested" && <p className="mirror-card-notice" role="status">사원증 없이 시작한 체험이에요. 리포트를 출력하려면 사원증을 태그해 새 체험을 시작해 주세요.</p>}
       {active === "home" && !mirror && apiError && <p className="preview-error" role="alert">{apiError}</p>}
-      {!mirror && active === "simulation-chat" && <ScenarioSurveyPage key={`${serviceMode.id}:${scenarioPrompt}`} prompt={scenarioPrompt} serviceMode={serviceMode.id} initialTurns={promptTurns} onUnsavedChange={setSurveyHasDraft} onBack={() => navigate("home")} />}
+      {!mirror && active === "simulation-chat" && (usePromptChat ? <SimulationChatPage key={`${serviceMode.id}:${scenarioPrompt}`} prompt={scenarioPrompt} serviceMode={serviceMode.id} initialTurns={promptTurns} onBack={() => navigate("home")} /> : <ScenarioSurveyPage key={`${serviceMode.id}:${scenarioPrompt}`} prompt={scenarioPrompt} serviceMode={serviceMode.id} initialTurns={promptTurns} onUnsavedChange={setSurveyHasDraft} onBack={() => navigate("home")} />)}
       {active === "faq" && <FaqPage />}
       {active === "pricing" && <PricingPage onStart={() => navigate("home")} />}
       {active === "usage" && <UsagePage onPractice={() => navigate("simulation-chat")} />}
       {active === "intro" && <SiteIntroPage onPractice={() => navigate("home")} />}
       {active === "records" && <ResultsHistoryPage onRepeat={prompt => { setScenarioPrompt(prompt); navigate("home"); }} onResultBack={() => navigate("home")} onPractice={() => navigate("home")} report={mirror ? report : null} history={history} onIssueCode={issueCode} selectedDifficulty={difficulty} progress={mirror ? analysisProgress : null} error={apiError} />}
       {mirror && active === "home" && <WorkplaceMirrorWelcomePage onStart={startMirrorExperience} nfcError={nfcError} />}
-      {!mirror && ["home", "service"].includes(active) && <HomePage history={Array.isArray(history) ? history : []} onRecords={() => navigate("records")} serviceMode={serviceMode} turns={promptTurns} onTurns={setPromptTurns} prompt={scenarioPrompt} onPrompt={setScenarioPrompt} onNext={beginPrompt} onUsage={() => navigate("usage")} onModePick={id => chooseServiceMode(id, true)} onModeSelect={() => navigate("service")} />}
+      {!mirror && ["home", "service"].includes(active) && <HomePage history={Array.isArray(history) ? history : []} onRecords={() => navigate("records")} serviceMode={serviceMode} turns={promptTurns} onTurns={setPromptTurns} prompt={scenarioPrompt} onPrompt={setScenarioPrompt} onNext={beginPrompt} onPromptChat={beginPromptChat} onUsage={() => navigate("usage")} onModePick={id => chooseServiceMode(id, true)} onModeSelect={() => navigate("service")} />}
       {mirror && active === "role" && <RoleSelectPage serviceMode={serviceMode} counterpartProfile={counterpartProfile} onCounterpart={chooseCounterpartProfile} onPrev={() => window.history.back()} onNext={() => navigate("scenario")} />}
       {mirror && active === "scenario" && <ScenarioSelectPage serviceMode={serviceMode} prompt={scenarioPrompt} onPrompt={setScenarioPrompt} onPrev={() => window.history.back()} onNext={() => navigate("difficulty")} />}
       {mirror && active === "difficulty" && <DifficultyPage serviceMode={serviceMode} counterpartProfile={counterpartProfile} scenario={previewScenario} selectedEpisode={previewEpisode} difficulty={difficulty} onDifficulty={setDifficulty} onPrev={() => navigate("home")} onNext={() => navigate("preview")} />}

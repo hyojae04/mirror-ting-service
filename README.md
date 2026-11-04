@@ -10,7 +10,7 @@ Mirror-Ting(미러팅)은 실제 면접이나 직장 대화를 앞두고 **AI �
 
 ## 현재 공개 사이트 최종본
 
-현재 배포된 설문형 시나리오 설계 체험의 소스는 [`sites/current/`](sites/current/)에 있습니다. 기존 `mvp/`·`poc/` 앱과 실행 구조가 달라 별도 폴더로 관리합니다. 공개 체험은 시나리오 설계까지 제공하며 실제 대화 시뮬레이션은 실행하지 않습니다.
+현재 배포된 설문형 시나리오 설계 체험의 소스는 [`sites/current/`](sites/current/)에 있습니다. 기존 `mvp/`·`poc/` 앱과 실행 구조가 달라 별도 폴더로 관리합니다. 현재 소스에는 대화 시뮬레이션과 카메라·마이크를 사용하는 3턴 직장대화 촬영 흐름도 포함합니다. `/original/index.html?recording=workplace`에서 실행하며, 자세한 사용법은 `sites/current/README.md`를 참고하세요. GitHub 반영과 공개 사이트 배포는 별도입니다.
 
 - 원본 Sites 커밋: `538b4259dca16df34c338a5fd6b1dda5d32e1e77`
 - 공개 주소: https://mirror-ting-design-ab-hyojae.hyojaey77.chatgpt.site/

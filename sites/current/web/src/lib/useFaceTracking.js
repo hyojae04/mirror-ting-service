@@ -82,6 +82,7 @@ export function useFaceTracking(mediaStream, videoRef, canvasRef, showFaceOverla
     let timer = 0;
     let lastPush = 0;
     let lastVideoTime = -1;
+    let lastInferenceTime = -10;
     let lastFrameAt = performance.now();
     let searchFrame = 0;
     let inferAvg = 0;
@@ -137,22 +138,23 @@ export function useFaceTracking(mediaStream, videoRef, canvasRef, showFaceOverla
           }
           lastVideoTime = video.currentTime;
           lastFrameAt = performance.now();
-          const ts = performance.now();
+          const ts = Math.max(Math.ceil(performance.now()), lastInferenceTime + 10);
+          lastInferenceTime = ts;
           try {
-            const poseResult = poseLm.detectForVideo(video, ts + 0.001);
+            const poseResult = poseLm.detectForVideo(video, ts + 1);
             let selected = centralPose(poseResult);
             let candidates = (poseResult.landmarks || []).map((landmarks, i) => ({ landmarks, worldLandmarks: poseResult.worldLandmarks?.[i] }));
             let region = null;
             if (smallPose(selected)) {
               region = drawCenteredInput(video, centerCanvas, TRACKING_SCAN_CENTERS[searchFrame++ % TRACKING_SCAN_CENTERS.length]);
-              const cropped = poseLm.detectForVideo(centerCanvas, ts + 0.002);
+              const cropped = poseLm.detectForVideo(centerCanvas, ts + 2);
               const mapped = (cropped.landmarks || []).map((points, i) => ({ landmarks: mapRegionLandmarks(points, region, video.videoWidth, video.videoHeight), worldLandmarks: cropped.worldLandmarks?.[i] }));
               // Use one inference result set to avoid duplicate identities from full/cropped views.
               if (mapped.length) candidates = mapped;
             }
-            let handLandmarks = handLm.detectForVideo(video, ts + 0.003).landmarks || [];
+            let handLandmarks = handLm.detectForVideo(video, ts + 3).landmarks || [];
             if (!handLandmarks.length && region) {
-              handLandmarks = (handLm.detectForVideo(centerCanvas, ts + 0.004).landmarks || [])
+              handLandmarks = (handLm.detectForVideo(centerCanvas, ts + 4).landmarks || [])
                 .map(points => mapRegionLandmarks(points, region, video.videoWidth, video.videoHeight));
             }
             selected = participantRef.current.update(candidates, ts);
@@ -163,7 +165,7 @@ export function useFaceTracking(mediaStream, videoRef, canvasRef, showFaceOverla
             handLandmarks = participantHands(handLandmarks, selected);
             if (!selected) presenceEpochRef.current += 1;
             try {
-              faceLandmarksRef.current = detectParticipantFace(face, video, headCanvas, selected, ts + .005);
+              faceLandmarksRef.current = detectParticipantFace(face, video, headCanvas, selected, ts + 5);
             } catch (error) {
               faceLandmarksRef.current = null;
               presenceEpochRef.current += 1;
