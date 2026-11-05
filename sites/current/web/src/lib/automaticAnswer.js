@@ -1,6 +1,15 @@
 // One listening window per user turn. Stop after a pause, then submit final text.
-export function startAutomaticAnswer({ Recognition, onText, onAnswer, onListening, onError, pauseMs = 1400 }) {
+export function startAutomaticAnswer({ Recognition, onText, onAnswer, onListening, onError, pauseMs = 700 }) {
   let recognition, silence, retry, disposed = false, transcript = '';
+  const submit = speech => {
+    if (disposed || !transcript) return;
+    disposed = true;
+    clearTimeout(silence); clearTimeout(retry);
+    speech.onresult = speech.onend = speech.onerror = null;
+    speech.abort();
+    onListening(false);
+    onAnswer(transcript);
+  };
   const start = () => {
     if (disposed) return;
     transcript = '';
@@ -13,7 +22,7 @@ export function startAutomaticAnswer({ Recognition, onText, onAnswer, onListenin
       transcript = Array.from(event.results).map(result => result[0].transcript).join(' ').trim();
       onText(transcript);
       clearTimeout(silence);
-      if (transcript) silence = setTimeout(() => speech.stop(), pauseMs);
+      if (transcript) silence = setTimeout(() => submit(speech), pauseMs);
     };
     speech.onerror = event => {
       if (disposed || event.error === 'aborted' || event.error === 'no-speech') return;
@@ -26,7 +35,7 @@ export function startAutomaticAnswer({ Recognition, onText, onAnswer, onListenin
       clearTimeout(silence);
       onListening(false);
       if (disposed) return;
-      if (transcript) { disposed = true; onAnswer(transcript); }
+      if (transcript) submit(speech);
       else retry = setTimeout(start, 500);
     };
     try { speech.start(); onListening(true); }

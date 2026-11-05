@@ -4,10 +4,11 @@ import { ArrowLeft } from 'reicon-react/icons/ArrowLeft';
 import { Microphone } from 'reicon-react/icons/Microphone';
 import { Sidebar } from 'reicon-react/icons/Sidebar';
 import { simulationChatRequest } from '../lib/simulationChatApi';
-import { isWorkplaceDemo, workplaceDemoRequest, workplaceDemoAnswers } from '../lib/workplaceDemo';
+import { isWorkplaceDemo, workplaceDemoRequest } from '../lib/workplaceDemo';
 import { containsProfanity, PROFANITY_MESSAGE } from '../lib/profanity';
 import { SimulationMediaStage } from '../components/practice/SimulationMediaStage';
 import { SimulationDeviceModal } from '../components/practice/SimulationDeviceModal';
+import { WorkplaceConversationResult } from '../components/practice/WorkplaceConversationResult';
 import { startAutomaticAnswer } from '../lib/automaticAnswer';
 import { useSimulationDevices } from '../lib/useSimulationDevices';
 import '../styles/simulation-chat.css';
@@ -26,6 +27,8 @@ export function SimulationChatPage({ prompt, serviceMode, initialTurns = 5, onBa
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([{ role: 'user', content: prompt }]);
   const [simulation, setSimulation] = useState([]);
+  const analysisReader = useRef(null);
+  const [measurements, setMeasurements] = useState([]);
   const [confirmed, setConfirmed] = useState(null);
   const [phase, setPhase] = useState('prepare');
   const [preflightOpen, setPreflightOpen] = useState(false);
@@ -53,6 +56,7 @@ export function SimulationChatPage({ prompt, serviceMode, initialTurns = 5, onBa
   const preparing = phase === 'prepare';
   const optionalQuestion = question?.field === 'additional_notes';
   const visibleMessages = preparing ? messages : simulation;
+  const visibleError = demo && phase === 'simulation' ? '' : error;
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => { if (phase === 'done') devices.release(); }, [phase, devices.release]);
   useEffect(() => { document.title = `${phase === 'prepare' ? 'AI와 연습 준비' : phase === 'done' ? '연습 완료' : 'AI 시뮬레이션'} · Mirror-Ting`; }, [phase]);
@@ -108,6 +112,10 @@ export function SimulationChatPage({ prompt, serviceMode, initialTurns = 5, onBa
         const settings = action === 'start' ? { ...draft } : confirmed;
         const next = action === 'start' ? [] : [...simulation, { role: 'user', content }];
         const result = await sendRequest('reply', { prompt, draft: settings, service_mode: serviceMode, messages: next, consent }, controller.current.signal);
+        if (demo && action === 'answer') {
+          const measured = analysisReader.current?.() ?? null;
+          setMeasurements(previous => [...previous, measured]);
+        }
         setSimulation(result.message ? [...next, { role: 'assistant', content: result.message }] : next);
         setConfirmed(settings); setPhase(result.done ? 'done' : 'simulation'); setAnswered(result.answered_turns); setInput('');
         if (action === 'start') { setPreflightOpen(false); setContextOpen(false); }
@@ -157,6 +165,11 @@ export function SimulationChatPage({ prompt, serviceMode, initialTurns = 5, onBa
     setPreflightOpen(false); setError(''); devices.release();
   };
 
+  const retryConversation = () => {
+    setMeasurements([]); setSimulation([]); setAnswered(0); setInput(''); setError('');
+    setAutoListen(false); setAutoPaused(false); setPhase('prepare'); setPreflightOpen(true);
+  };
+
   return <section className={`simulation-chat-page lovable-central-chat ${preparing ? 'is-preparing' : 'is-simulation'} context-${contextOpen ? 'open' : 'closed'}`} aria-labelledby="simulation-chat-title">
     <header className="editor-toolbar">
       <div className="editor-project">
@@ -164,13 +177,12 @@ export function SimulationChatPage({ prompt, serviceMode, initialTurns = 5, onBa
         <img src="/icons/mirror-ting-mark-slim.png" alt="" width="22" height="22" />
         <h1 id="simulation-chat-title" title={draft.situation || 'AI와 연습 준비'}>{draft.situation || (preparing ? 'AI와 연습 준비' : 'AI 시뮬레이션')}</h1>
       </div>
-      <button ref={contextToggleRef} type="button" className="editor-context-toggle" aria-label={contextOpen ? '연습 설정 닫기' : '연습 설정 열기'} aria-expanded={contextOpen} aria-controls="simulation-context" onClick={() => setContextOpen(!contextOpen)}><Sidebar size={18} aria-hidden="true" /><span>연습 설정</span></button>
+      {preparing && <button ref={contextToggleRef} type="button" className="editor-context-toggle" aria-label={contextOpen ? '연습 설정 닫기' : '연습 설정 열기'} aria-expanded={contextOpen} aria-controls="simulation-context" onClick={() => setContextOpen(!contextOpen)}><Sidebar size={18} aria-hidden="true" /><span>연습 설정</span></button>}
     </header>
-    <div className="simulation-workbench">
-    {!preparing && <SimulationMediaStage demo={demo} name={confirmed?.target || 'AI 상대'} message={simulation.at(-1)?.role === 'assistant' ? simulation.at(-1).content : ''} messageId={simulation.length} active={phase === 'simulation'} busy={busy} listening={listening} canDictate={Boolean(SpeechRecognition)} onDictate={demo ? () => setAutoPaused(value => !value) : dictate} onAutoListenChange={setAutoListen} autoPaused={autoPaused} devices={devices} answered={answered} turns={confirmed?.turns} />}
-    <div className="simulation-chat-conversation">
-      {!preparing && <div className="simulation-transcript-heading"><strong>대화 기록</strong><span>내 말로 답해보세요</span></div>}
-      <div className="simulation-chat-transcript" role="log" aria-label={preparing ? '연습 준비 대화' : '시뮬레이션 대화'} aria-busy={busy}>
+    {demo && phase === 'done' ? <WorkplaceConversationResult measurements={measurements} messages={simulation} onRetry={retryConversation} onBack={onBack} /> : <div className="simulation-workbench">
+    {!preparing && <SimulationMediaStage analysisReader={analysisReader} demo={demo} name={confirmed?.target || 'AI 상대'} message={simulation.at(-1)?.role === 'assistant' ? simulation.at(-1).content : ''} messageId={simulation.length} active={phase === 'simulation'} busy={busy} listening={listening} canDictate={Boolean(SpeechRecognition)} onDictate={demo ? () => setAutoPaused(value => !value) : dictate} onAutoListenChange={setAutoListen} autoPaused={autoPaused} devices={devices} answered={answered} turns={confirmed?.turns} />}
+    <div className={`simulation-chat-conversation ${!preparing ? 'simulation-live-composer' : ''}`}>
+      {preparing && <div className="simulation-chat-transcript" role="log" aria-label={preparing ? '연습 준비 대화' : '시뮬레이션 대화'} aria-busy={busy}>
         <div className="simulation-transcript-inner">
         {visibleMessages.map((message, index) => <article key={`${phase}-${index}`} className={`simulation-message simulation-message--${message.role}`}><span>{message.role === 'user' ? '나' : preparing ? '준비 도우미' : 'AI 상대'}</span><p>{message.content}</p></article>)}
         {preparing && !begun && <div className="simulation-chat-intro"><p>직무와 구체적으로 있었던 일을 살펴보고, 더 필요한 내용만 물어볼게요.</p><p>예시를 고르거나 원하는 답을 직접 적을 수 있어요. 1턴은 내 답변 한 번을 뜻해요.</p></div>}
@@ -180,7 +192,6 @@ export function SimulationChatPage({ prompt, serviceMode, initialTurns = 5, onBa
           <details><summary>확인한 설정 보기</summary><dl>{fields.map(([key,label])=><div key={key}><dt>{label}</dt><dd>{key==='turns'?`${draft[key]}턴`:key==='difficulty'?{basic:'기본',pressure:'심화',ultra_pressure:'압박'}[draft[key]]:key==='context'?(draft.context_source || draft.context):draft[key]}</dd></div>)}</dl>{draft.additional_notes && <p className="simulation-additional-notes">추가 사항: {draft.additional_notes}</p>}</details>
           <button type="button" className="simulation-chat-start" disabled={busy || !consent} onClick={() => setPreflightOpen(true)}>설정 확정하고 시작하기</button>
         </section>}
-        {phase === 'done' && <p className="simulation-chat-status" role="status">{answered >= confirmed.turns ? `정한 ${confirmed.turns}턴을 마쳤어요.` : '직접 연습을 종료했어요.'} 대화는 이 화면에서 다시 읽을 수 있어요.</p>}
         {preparing && begun && question && <section className="simulation-question simulation-question-card" aria-labelledby="simulation-question-title">
           <div className="simulation-question-card-top"><span><span aria-hidden="true">?</span> 질문</span><span>{optionalQuestion ? '마지막 질문 · 선택' : `필수 설정 ${fields.length - missing.length} / ${fields.length}`}</span></div>
           <h2 id="simulation-question-title">{question.title}</h2>
@@ -194,19 +205,19 @@ export function SimulationChatPage({ prompt, serviceMode, initialTurns = 5, onBa
         </section>}
         <div ref={transcriptEndRef} />
         </div>
-      </div>
+      </div>}
       <div className="simulation-chat-input-area">
-        {error && <p id="simulation-input-error" className="simulation-chat-error" role="alert">{error}</p>}
-        {demo && phase === 'simulation' && <button type="button" className="demo-answer" onClick={() => { setInput(workplaceDemoAnswers[Math.min(answered, workplaceDemoAnswers.length - 1)]); inputRef.current?.focus(); }}>추천 답변: {workplaceDemoAnswers[Math.min(answered, workplaceDemoAnswers.length - 1)]}</button>}
+        {phase === 'done' && !demo && <p className="simulation-chat-status" role="status">{answered >= confirmed.turns ? `정한 ${confirmed.turns}턴을 마쳤어요.` : '직접 연습을 종료했어요.'}</p>}
+        {visibleError && <p id="simulation-input-error" className="simulation-chat-error" role="alert">{visibleError}</p>}
         {phase !== 'done' && <form onSubmit={event => { event.preventDefault(); request(preparing ? 'prepare' : 'answer'); }}>
           <label htmlFor="simulation-chat-input" className="simulation-composer-label">{preparing ? '준비 도우미에게 답하기' : 'AI 상대에게 답하기'}</label>
-          <textarea ref={inputRef} id="simulation-chat-input" rows={2} value={input} aria-invalid={error === PROFANITY_MESSAGE || undefined} aria-describedby={error ? 'simulation-input-error' : question ? 'simulation-question-title' : undefined} onKeyDown={sendOnEnter} onChange={event => {setInput(event.target.value);setSelected(null);setError('');}} maxLength={optionalQuestion ? 2000 : undefined} disabled={busy || !consent} placeholder={optionalQuestion ? '추가 상황이나 주의할 점을 적어주세요.' : preparing ? begun && !question && !missing.length ? '바꾸고 싶은 설정이 있다면 적어주세요.' : '예시 답변을 고르거나 원하는 내용을 직접 적어주세요.' : '상대에게 할 말을 적어주세요.'}/>
+          <textarea ref={inputRef} id="simulation-chat-input" rows={2} value={input} aria-invalid={error === PROFANITY_MESSAGE || undefined} aria-describedby={visibleError ? 'simulation-input-error' : question ? 'simulation-question-title' : undefined} onKeyDown={sendOnEnter} onChange={event => {setInput(event.target.value);setSelected(null);setError('');}} maxLength={optionalQuestion ? 2000 : undefined} disabled={busy || !consent} placeholder={optionalQuestion ? '추가 상황이나 주의할 점을 적어주세요.' : preparing ? begun && !question && !missing.length ? '바꾸고 싶은 설정이 있다면 적어주세요.' : '예시 답변을 고르거나 원하는 내용을 직접 적어주세요.' : '상대에게 할 말을 적어주세요.'}/>
           <div className="simulation-chat-toolbar"><span>{preparing ? 'Enter로 전송 · Shift+Enter로 줄바꿈' : `${answered} / ${confirmed?.turns}턴`}</span>{preparing && question && SpeechRecognition && <button type="button" className="simulation-question-microphone" aria-label={listening ? '음성 입력 중지' : '음성으로 답변 입력'} aria-pressed={listening} disabled={busy} onClick={dictate}><Microphone size={18} aria-hidden="true" /></button>}<button type="submit" disabled={busy || !consent || ((begun || !preparing) && !input.trim())} aria-label={preparing ? begun ? question ? '입력한 답변 보내기' : '설정 변경사항 보내기' : '시나리오 설계 시작하기' : '시뮬레이션 답변 보내기'}><ArrowUp size={18} aria-hidden="true"/></button></div>
           {!preparing && <p className="simulation-composer-hint">Enter로 전송 · Shift+Enter로 줄바꿈</p>}
         </form>}
       </div>
     </div>
-    <dialog ref={contextRef} id="simulation-context" className="simulation-context editor-context" aria-labelledby="simulation-context-title" aria-modal={compact && contextOpen ? true : undefined} onCancel={() => setContextOpen(false)}>
+    {preparing && <dialog ref={contextRef} id="simulation-context" className="simulation-context editor-context" aria-labelledby="simulation-context-title" aria-modal={compact && contextOpen ? true : undefined} onCancel={() => setContextOpen(false)}>
       <div className="editor-context-heading"><h2 id="simulation-context-title">연습 설정</h2><button type="button" aria-label="설정 닫기" onClick={() => setContextOpen(false)}>×</button></div>
       <div className="editor-context-content">
         <span className="editor-preview-badge">{preparing ? '시나리오 요약' : phase === 'done' ? '연습 완료' : 'AI와 대화 연습'}</span>
@@ -219,8 +230,8 @@ export function SimulationChatPage({ prompt, serviceMode, initialTurns = 5, onBa
           {(confirmed || draft).additional_notes && <div className="simulation-additional-notes"><strong>추가 사항</strong><p>{(confirmed || draft).additional_notes}</p></div>}
         </details>
       </div>
-    </dialog>
-    </div>
+    </dialog>}
+    </div>}
     <SimulationDeviceModal open={preflightOpen} devices={devices} onCancel={cancelPreflight} onStart={() => request('start')} busy={busy} error={error} />
   </section>;
 }

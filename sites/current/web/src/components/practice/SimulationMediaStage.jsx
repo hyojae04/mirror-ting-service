@@ -8,8 +8,9 @@ import { claimAudio } from '../../lib/audioOwnership';
 import { startTurnSpeech } from '../../lib/turnSpeechPlayback';
 import { useFaceTracking } from '../../lib/useFaceTracking';
 import { practiceSpeechOptions } from '../../lib/practiceSpeechOptions';
+import { workplaceClips } from '../../lib/workplaceMedia';
 
-export function SimulationMediaStage({ demo = false, name, message, messageId, active, busy, listening, canDictate, onDictate, onAutoListenChange, autoPaused = false, devices, answered, turns }) {
+export function SimulationMediaStage({ demo = false, name, message, messageId, active, busy, listening, canDictate, onDictate, onAutoListenChange, autoPaused = false, devices, answered, turns, analysisReader }) {
   const { stream, connecting, error: mediaError, connect } = devices;
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
@@ -23,8 +24,14 @@ export function SimulationMediaStage({ demo = false, name, message, messageId, a
   useEffect(() => () => releaseVideoAudio.current(), []);
   const overlayRef = useRef(null);
   const tracking = useFaceTracking(active && cameraOn ? stream : null, videoRef, overlayRef);
+  useEffect(() => {
+    if (!analysisReader) return undefined;
+    analysisReader.current = tracking.collectTurnStats;
+    return () => { analysisReader.current = null; };
+  }, [analysisReader, tracking.collectTurnStats]);
   const [demoPlaybackBlocked, setDemoPlaybackBlocked] = useState(false);
   const [videoFinished, setVideoFinished] = useState(false);
+  const clip = workplaceClips[Math.min(answered, workplaceClips.length - 1)];
   useEffect(() => {
     onAutoListenChange?.(demo && active && micOn && videoFinished && !speaking && !demoPlaybackBlocked);
   }, [demo, active, micOn, videoFinished, speaking, demoPlaybackBlocked, onAutoListenChange]);
@@ -59,8 +66,19 @@ export function SimulationMediaStage({ demo = false, name, message, messageId, a
 
   return <section className="simulation-media" aria-label="영상·음성 대화 연습">
     <div className="simulation-stage-heading"><span><i aria-hidden="true" /> AI와 대화 연습</span><span>{answered} / {turns}턴</span></div>
+    {demo && active && <div className="simulation-analysis-status" aria-label="실시간 분석 상태">
+      <span data-active={tracking.expressionStatus === 'ready'}><i aria-hidden="true"/><b>표정</b>{tracking.expressionStatus === 'ready' ? '분석 중' : tracking.expressionStatus === 'failed' ? '분석 불가' : '얼굴 인식 대기'}</span>
+      <span data-active={tracking.poseTracked && !tracking.calibrating}><i aria-hidden="true"/><b>자세</b>{tracking.poseTracked ? tracking.calibrating ? '기준 확인 중' : '분석 중' : '상체 인식 대기'}</span>
+      <span data-active={listening}><i aria-hidden="true"/><b>목소리</b>{listening ? '음성 인식 중' : '입력 대기'}</span>
+      <span data-active={busy}><i aria-hidden="true"/><b>응답</b>{busy ? '내용 확인 중' : `${answered}개 답변 확인`}</span>
+    </div>}
     <div className="simulation-avatar" data-speaking={speaking}>
-      {demo ? <video ref={demoVideoRef} className="camera-video counterpart-video is-live" src={`${import.meta.env.BASE_URL}demo-workplace/turn-${Math.min(answered + 1, 3)}.mp4`} playsInline muted={!audioEnabled} onPlay={() => {
+      {demo ? <video ref={demoVideoRef} className="camera-video counterpart-video is-live" src={`${import.meta.env.BASE_URL}demo-workplace/${clip.file}`} playsInline muted={!audioEnabled || videoFinished} onTimeUpdate={event => {
+        if (event.currentTarget.currentTime >= clip.speechEnd) {
+          event.currentTarget.muted = true;
+          setSpeaking(false); setVideoFinished(true);
+        }
+      }} onPlay={() => {
         releaseVideoAudio.current();
         window.speechSynthesis?.cancel();
         releaseVideoAudio.current = claimAudio(() => { demoVideoRef.current?.pause(); setSpeaking(false); setVideoFinished(false); });
@@ -73,8 +91,8 @@ export function SimulationMediaStage({ demo = false, name, message, messageId, a
         {(!stream || !cameraOn) && <span>{stream ? '카메라 꺼짐' : '내 카메라'}</span>}
       </div>
     </div>
+    {!demo && <>
     {stream && active && <p className="simulation-media-note" role="status">{!cameraOn ? '카메라 꺼짐' : tracking.status === 'failed' ? '영상 인식을 시작하지 못했어요. 카메라를 다시 연결해주세요.' : tracking.status !== 'ready' ? '영상 인식 준비 중…' : !tracking.tracking ? '얼굴이 화면 중앙에 보이도록 앉아주세요.' : tracking.calibrating ? '얼굴 인식됨 · 자세 기준 확인 중' : `얼굴 인식됨 · ${tracking.poseTracked ? '자세 인식 중' : '상체가 보이도록 앉아주세요'}`}</p>}
-    {demo && demoPlaybackBlocked && <p className="simulation-chat-error" role="alert">영상을 자동으로 재생하지 못했어요. 다시 듣기를 눌러주세요.</p>}
     <div className="simulation-media-controls">
       {!stream && <button type="button" onClick={connect} disabled={connecting || !active}>{connecting ? '장치 연결 중…' : '카메라·마이크 켜기'}</button>}
       {stream && <>
@@ -89,5 +107,6 @@ export function SimulationMediaStage({ demo = false, name, message, messageId, a
     {!canDictate && <p className="simulation-media-note">음성 인식은 Chrome 또는 Edge에서 사용할 수 있어요. 현재 브라우저에서는 직접 입력해주세요.</p>}
     {speechUnavailable && <p className="simulation-media-note" role="status">상대 음성을 재생하지 못했어요. 대사를 읽거나 다시 듣기를 눌러주세요.</p>}
     {mediaError && <p className="simulation-chat-error" role="alert">{mediaError}</p>}
+    </>}
   </section>;
 }

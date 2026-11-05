@@ -33,6 +33,19 @@ test('silence never advances a turn', async () => {
   assert.deepEqual(run.answers, []);
   run.dispose();
 });
+test('submits without waiting for a browser stop/onend event and ignores late callbacks', async () => {
+  const run = setup(), speech = run.instances[0];
+  speech.stop = () => {};
+  const lateEnd = speech.onend;
+  speech.result('네 오늘 중으로 공유하겠습니다');
+  await wait();
+  assert.deepEqual(run.answers, ['네 오늘 중으로 공유하겠습니다']);
+  assert.equal(speech.aborted, true);
+  assert.equal(speech.onresult, null);
+  lateEnd();
+  assert.equal(run.answers.length, 1);
+  run.dispose();
+});
 test('cleanup cancels pending answers and aborts the microphone recognizer', async () => {
   const run = setup();
   run.instances[0].result('보내지 않을 답변');
